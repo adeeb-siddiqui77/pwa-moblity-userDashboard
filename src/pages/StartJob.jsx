@@ -30,6 +30,85 @@ export default function StartJob(){
   const [rateLoading, setRateLoading] = useState(false)
   const [rateError, setRateError] = useState("")
   const [rateCostData, setRateCostData] = useState(null) // { totalCost, breakdown: [{service, cost}] }
+  
+  // Update Zoho ticket (local backend) when proceeding to OTP
+  const submitZohoTicketUpdate = async () => {
+    try {
+      // Build arrays of strings (filenames or empty)
+      const prePhotos = [
+        uploadedFiles.pre_0 ? (uploadedFiles.pre_0.name || "") : "",
+        uploadedFiles.pre_1 ? (uploadedFiles.pre_1.name || "") : "",
+      ].filter((v, idx, arr) => v || idx === 0) // keep at least one entry
+
+      const postPhotos = [
+        uploadedFiles.capture_0 ? (uploadedFiles.capture_0.name || "") : "",
+        uploadedFiles.post_0 ? (uploadedFiles.post_0.name || "") : "",
+        uploadedFiles.post_1 ? (uploadedFiles.post_1.name || "") : "",
+      ].filter((v, idx, arr) => v || idx === 0) // keep at least one entry
+
+      const payload = {
+        preRepairPhotos: prePhotos,
+        workDetails: {
+          tyreType: selectedTyreType,
+          services: selectedServices,
+          patchType: selectedPatchType,
+          patchNumber: patchNumber,
+          tyreFittingOption: selectedServices.includes('Tyre Fitting') ? tyreFittingOption : null,
+          wheelAssemblyOption: selectedServices.includes('Wheel Assembly') ? wheelAssemblyOption : null,
+          otherServices: selectedServices.includes('Other Services') ? (otherServicesText || null) : null
+        },
+        postRepairPhotos: postPhotos
+      }
+
+      const zohoId = ticketData?.zohoTicketId || ''
+      if (!zohoId) {
+        console.warn('Zoho ticket id not available; skipping update call')
+        return
+      }
+
+      const endpoint = `https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/update/${zohoId}`
+      console.log('Calling Zoho Update →', endpoint, payload)
+      await fetch(endpoint, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.warn('Zoho update call failed (dev server likely not running):', err?.message))
+    } catch (err) {
+      console.error('Failed to update Zoho ticket:', err)
+    }
+  }
+
+  // Verify OTP: mark Zoho ticket completed (local backend)
+  const submitZohoVerifyCompleted = async () => {
+    try {
+      const accessToken = localStorage.getItem('access_token') || ''
+      const payload = {
+        tokenDetails: {
+          accessToken,
+          expiresAt: ''
+        },
+        data: {
+          status: 'Completed'
+        }
+      }
+
+      const zohoId = ticketData?.zohoTicketId || ''
+      if (!zohoId) {
+        console.warn('Zoho ticket id not available; skipping verify-completed call')
+        return
+      }
+
+      const endpoint = `https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/${zohoId}`
+      console.log('Calling Zoho Verify Completed →', endpoint, payload)
+      await fetch(endpoint, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.warn('Zoho verify call failed (dev server likely not running):', err?.message))
+    } catch (err) {
+      console.error('Failed to mark Zoho ticket completed:', err)
+    }
+  }
 
   // Build FormData from payload (object-shaped photo fields)
   const buildFormDataFromPayload = (payload) => {
@@ -65,6 +144,54 @@ export default function StartJob(){
     }
 
     return fd
+  }
+
+  // Build FormData using ARRAY fields for photos (preRepairPhotos[] / postRepairPhotos[])
+  const buildFormDataFromArrays = (payload) => {
+    const fd = new FormData()
+    const jsonSafe = { ...payload }
+    delete jsonSafe.preRepairPhotos
+    delete jsonSafe.postRepairPhotos
+    fd.append('payload', new Blob([JSON.stringify(jsonSafe)], { type: 'application/json' }))
+
+    if (Array.isArray(payload.preRepairPhotos)) {
+      payload.preRepairPhotos.forEach((file) => { if (file) fd.append('preRepairPhotos[]', file) })
+    }
+    if (Array.isArray(payload.postRepairPhotos)) {
+      payload.postRepairPhotos.forEach((file) => { if (file) fd.append('postRepairPhotos[]', file) })
+    }
+    return fd
+  }
+
+  // Prepare payload variant with ARRAYS of File objects (for final OTP completion flow)
+  const preparePayloadWithArrays = () => {
+    const preArr = [uploadedFiles.pre_0, uploadedFiles.pre_1].filter(Boolean)
+    const postArr = [uploadedFiles.capture_0, uploadedFiles.post_0, uploadedFiles.post_1].filter(Boolean)
+    return {
+      ...preparePayload(), // reuse same structure for fields
+      preRepairPhotos: preArr,
+      postRepairPhotos: postArr,
+    }
+  }
+
+  // Final submit after OTP: send arrays of File in multipart as [] fields
+  const submitFinalAfterOtp = async () => {
+    try {
+      const payload = preparePayloadWithArrays()
+      const fd = buildFormDataFromArrays(payload)
+      const endpoint = `${API_BASE || ''}/api/jobs/complete`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}` },
+        body: fd,
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        console.warn('Final submit (OTP) failed:', res.status, text)
+      }
+    } catch (err) {
+      console.error('Error in final submit (OTP):', err)
+    }
   }
 
   // Submit pre-OTP job data to API (called after Post Repair uploads, before OTP)
@@ -819,7 +946,13 @@ export default function StartJob(){
             <button
               className='btn'
               onClick={async () => {
-                // Save current bill data / payload to DB before OTP step
+                // Ensure cost data fetched
+                if (!rateCostData) {
+                  await fetchRateCardCosts()
+                }
+                // Update Zoho ticket with array-of-strings photos
+                await submitZohoTicketUpdate()
+                // Save full payload pre-OTP (FormData route)
                 await submitJobPreOtp();
                 setCurrentScreen('otp-verification');
               }}
@@ -901,12 +1034,17 @@ export default function StartJob(){
 
           {/* Verify Button */}
           <div className='btn-center'>
-            <button className='btn' onClick={() => {
+            <button className='btn' onClick={async () => {
+              // 1) Mark Zoho ticket completed via local API
+              await submitZohoVerifyCompleted()
+              // 2) Final submit with arrays of File objects
+              await submitFinalAfterOtp()
+              // 3) UI success & redirect to Home/Dashboard
               setShowSuccessModal(true)
               setTimeout(() => {
                 setShowSuccessModal(false)
-                setCurrentScreen('confirmation')
-              }, 2000)
+                nav('/')
+              }, 1200)
             }}>
               Verify OTP
             </button>
