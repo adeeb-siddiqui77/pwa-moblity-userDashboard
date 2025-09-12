@@ -30,7 +30,7 @@ export default function Login(){
       // Notify app & redirect
       window.dispatchEvent(new Event('auth-updated'))
       if (user?.isFirstLogin) {
-        window.location.replace('/kyc')
+        window.location.replace('/')
       } else {
         window.location.replace('/')
       }
@@ -46,7 +46,7 @@ export default function Login(){
       <div className='login-hero'>
         <div style={{textAlign:'center', color:'#fff'}}>
           <img alt='logo' src='/jk.png' />
-          <h1 style={{marginTop:16}}>PWA</h1>
+          <h1 className='bold-text' style={{marginTop:16, color:'#fff'}}>PWA</h1>
         </div>
       </div>
 
@@ -56,7 +56,7 @@ export default function Login(){
           <small className='login-follow'>Complete The Following Details to Create Account</small>
 
           <div className='login-form'>
-            <div className='row'>
+            <div className='stack'>
               <label className='login-mobile-label'>User's Mobile No.</label>
               <div className='row'>
                 <select className='input' style={{maxWidth:84}} defaultValue='+91'>
@@ -67,7 +67,7 @@ export default function Login(){
               </div>
             </div>
 
-            <div className='row'>
+            <div className='stack'>
               <label className='login-pin-label'>Enter Pin</label>
               <input type='password' className='input' placeholder='Enter Pin' value={pin} onChange={e=>setPin(e.target.value)} />
             </div>

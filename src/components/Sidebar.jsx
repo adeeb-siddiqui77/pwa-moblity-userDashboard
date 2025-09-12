@@ -1,8 +1,15 @@
 
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Sidebar({ open, onClose }){
+  const navigate = useNavigate()
+  
+  const handleViewProfile = () => {
+    onClose() // Close the sidebar first
+    navigate('/profile') // Navigate to profile page
+  }
+  
   if (!open) return null
   return (
     <div className='drawer-backdrop' onClick={onClose}>
@@ -16,7 +23,7 @@ export default function Sidebar({ open, onClose }){
           <button onClick={onClose} className='btn' style={{padding:'8px 12px', background:'#f3f4f6', color:'#111'}}>✕</button>
         </div>
 
-        <button className='btn' style={{width:'100%', marginTop:12}}>View Profile →</button>
+        <button className='btn' style={{width:'100%', marginTop:12}} onClick={handleViewProfile}>View Profile →</button>
 
         <div className='menu-section'>
           <div className='menu-section-title'>Quick Menu</div>

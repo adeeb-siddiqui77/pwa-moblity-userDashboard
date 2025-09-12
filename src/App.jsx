@@ -9,6 +9,7 @@ import { Toaster } from 'react-hot-toast'
 export default function App(){
   const [authed, setAuthed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  
 
   useEffect(()=>{
     const token = localStorage.getItem('access_token')
