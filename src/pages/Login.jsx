@@ -1,18 +1,22 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { loginWithPin } from '../api/auth'
-import axios from 'axios'
 import { toast } from 'react-hot-toast'
 
 export default function Login(){
-  const nav = useNavigate()
   const [mobile, setMobile] = useState('')
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const validateMobile = (mobile) => {
+    const mobileRegex = /^[6-9]\d{9}$/
+    return mobileRegex.test(mobile)
+  }
+
   const onPinLogin = async () => {
-    if (!mobile) return toast.error('Enter mobile')
-    if (!pin) return toast.error('Enter pin')
+    if (!mobile) return toast.error('Please enter mobile number')
+    if (!validateMobile(mobile)) return toast.error('Please enter a valid 10-digit mobile number')
+    if (!pin) return toast.error('Please enter PIN')
+    
     try {
       setLoading(true)
       const res = await loginWithPin(mobile, pin)
@@ -29,13 +33,14 @@ export default function Login(){
       toast.success('Login successful')
       // Notify app & redirect
       window.dispatchEvent(new Event('auth-updated'))
-      if (user?.isFirstLogin) {
-        window.location.replace('/')
-      } else {
-        window.location.replace('/')
-      }
+      window.location.replace('/')
     } catch(e) {
-      toast.error(e?.response?.data?.message || e?.message || 'PIN login failed')
+      const errorMessage = e?.response?.data?.message || e?.message || 'PIN login failed'
+      if (errorMessage.includes('not found') || errorMessage.includes('invalid')) {
+        toast.error('Driver not found. Please check your mobile number and PIN.')
+      } else {
+        toast.error(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
@@ -53,26 +58,45 @@ export default function Login(){
       <div className='login-panel'>
         <div className='panel-body'>
           <h2 className='login-welcome'>Welcome User!</h2>
-          <small className='login-follow'>Complete The Following Details to Create Account</small>
+          <small className='login-follow'>Complete The Following Details to Login</small>
 
           <div className='login-form'>
             <div className='stack'>
-              <label className='login-mobile-label'>User's Mobile No.</label>
+              <label className='login-mobile-label'>Mobile Number</label>
               <div className='row'>
                 <select className='input' style={{maxWidth:84}} defaultValue='+91'>
                   <option value='+91'>+91</option>
                   <option value='+1'>+1</option>
                 </select>
-                <input className='input' placeholder='Enter mobile number' value={mobile} onChange={e=>setMobile(e.target.value)} />
+                <input 
+                  className='input' 
+                  placeholder='Enter mobile number' 
+                  value={mobile} 
+                  onChange={e=>setMobile(e.target.value)}
+                  maxLength={10}
+                />
               </div>
             </div>
 
             <div className='stack'>
-              <label className='login-pin-label'>Enter Pin</label>
-              <input type='password' className='input' placeholder='Enter Pin' value={pin} onChange={e=>setPin(e.target.value)} />
+              <label className='login-pin-label'>Enter PIN</label>
+              <input 
+                type='password' 
+                className='input' 
+                placeholder='Enter PIN' 
+                value={pin} 
+                onChange={e=>setPin(e.target.value)}
+                disabled={loading}
+              />
             </div>
 
-            <button className='login-continue-btn' onClick={onPinLogin} disabled={loading}>Continue</button>
+            <button 
+              className={`login-continue-btn ${loading ? 'btn-loading' : ''}`}
+              onClick={onPinLogin} 
+              disabled={loading}
+            >
+              {loading ? 'Logging in...' : 'Continue'}
+            </button>
           </div>
         </div>
       </div>

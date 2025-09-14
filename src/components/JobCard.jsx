@@ -2,7 +2,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export default function JobCard({ job, showPriority = false, showCategory = false }){
+export default function JobCard({ job, showPriority = false, showCategory = false, fullTicket = null }){
   const nav = useNavigate()
   
   // Get priority color
@@ -25,8 +25,18 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
     }
   }
 
+  const handleCardClick = () => {
+    if (fullTicket) {
+      nav(`/ticket/${fullTicket._id}`, { state: { ticket: fullTicket } })
+    }
+  }
+
   return (
-    <div className='card job-card list-card'>
+    <div 
+      className='card job-card list-card' 
+      onClick={handleCardClick}
+      style={{ cursor: fullTicket ? 'pointer' : 'default' }}
+    >
       <div className='job-card-content'>
         <div className='job-card-header'>
           <div className='ticket-id'>Ticket ID: #{job.vehicle}</div>
@@ -64,7 +74,10 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
           <div className='ticket-issue-label'>Status</div>
           <div className='ticket-issue-content'>
             <div className='issue-text' style={{color: getStatusColor(job.issue)}}>{job.issue}</div>
-            {job.issue=="Completed"? "":     <button className='start-job-btn' onClick={() => nav(`/jobs/${job.id}/start`)}>Start Job</button>}
+            {job.issue=="Completed"? "":     <button className='start-job-btn' onClick={(e) => {
+              e.stopPropagation()
+              nav(`/jobs/${job.id}/start`)
+            }}>Start Job</button>}
        
           </div>
         </div>

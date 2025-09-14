@@ -3,8 +3,10 @@ import JobCard from '../components/JobCard'
 
 export default function Home(){
   const [tickets, setTickets] = useState([]);
+  const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState('all'); // 'all', 'open', 'completed'
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -26,6 +28,7 @@ export default function Home(){
         }
         const data = await res.json();
         setTickets(data.tickets || []);
+        setFilteredTickets(data.tickets || []);
       } catch (err) {
         setError(err.message || "Failed to fetch tickets");
       } finally {
@@ -35,24 +38,73 @@ export default function Home(){
     fetchTickets();
   }, []);
 
+  // Filter tickets based on selected filter
+  useEffect(() => {
+    if (filter === 'all') {
+      setFilteredTickets(tickets);
+    } else if (filter === 'open') {
+      setFilteredTickets(tickets.filter(ticket => 
+        ticket.status && ticket.status.toLowerCase() !== 'completed'
+      ));
+    } else if (filter === 'completed') {
+      setFilteredTickets(tickets.filter(ticket => 
+        ticket.status && ticket.status.toLowerCase() === 'completed'
+      ));
+    }
+  }, [filter, tickets]);
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+  };
+
   return (
     <div className='container'>
       <div className='row' style={{gap:8, marginBottom: 16}}>
         <div className='card' style={{flex:1, padding:12}}>
           <div className='caption-text'>Open Jobs</div>
-          <div className='bold-text' style={{fontSize: '18px'}}>20</div>
+          <div className='bold-text' style={{fontSize: '18px'}}>
+            {tickets.filter(t => t.status && t.status.toLowerCase() !== 'completed').length}
+          </div>
         </div>
         <div className='card' style={{flex:1, padding:12}}>
-          <div className='caption-text'>Pending Payments</div>
-          <div className='bold-text' style={{fontSize: '18px'}}>10</div>
+          <div className='caption-text'>Completed Jobs</div>
+          <div className='bold-text' style={{fontSize: '18px'}}>
+            {tickets.filter(t => t.status && t.status.toLowerCase() === 'completed').length}
+          </div>
         </div>
       </div>
 
-      <h3>Upcoming Jobs Today</h3>
+      <h3>Jobs</h3>
+      
+      {/* Filter Buttons */}
+      <div className='row' style={{gap:8, marginBottom: 16}}>
+        <button 
+          className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => handleFilterChange('all')}
+          style={{flex: 1}}
+        >
+          All ({tickets.length})
+        </button>
+        <button 
+          className={filter === 'open' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => handleFilterChange('open')}
+          style={{flex: 1}}
+        >
+          Open ({tickets.filter(t => t.status && t.status.toLowerCase() !== 'completed').length})
+        </button>
+        <button 
+          className={filter === 'completed' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => handleFilterChange('completed')}
+          style={{flex: 1}}
+        >
+          Completed ({tickets.filter(t => t.status && t.status.toLowerCase() === 'completed').length})
+        </button>
+      </div>
+
       <div className='list'>
         {loading && <div className='caption-text'>Loading...</div>}
         {error && <div style={{color:'red'}} className='text-field'>{error}</div>}
-        {!loading && !error && tickets.map(t => (
+        {!loading && !error && filteredTickets.map(t => (
           <JobCard
             key={t._id}
             job={{
@@ -60,12 +112,19 @@ export default function Home(){
               vehicle: t.zohoTicketId,
               customer: t.subject,
               mobile: t.phone,
+              email: t.email,
               issue: t.status,
+              priority: t.priority,
+              category: t.category,
+              dueDate: t.dueDate,
               time: new Date(t.createdAt).toLocaleTimeString()
             }}
+            fullTicket={t}
+            showPriority={true}
+            showCategory={true}
           />
         ))}
-        {!loading && !error && tickets.length === 0 && <div className='caption-text'>No tickets found.</div>}
+        {!loading && !error && filteredTickets.length === 0 && <div className='caption-text'>No tickets found.</div>}
       </div>
     </div>
   )

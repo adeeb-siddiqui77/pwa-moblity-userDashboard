@@ -12,6 +12,7 @@ import RateCard from './pages/RateCard'
 import SupportTickets from './pages/SupportTickets'
 import Training from './pages/Training'
 import StartJob from './pages/StartJob'
+import TicketDetails from './pages/TicketDetails'
 
 export default function AppRoutes({ authed }){
   return (
@@ -26,6 +27,7 @@ export default function AppRoutes({ authed }){
           <Route path='/' element={<Home/>} />
           <Route path='/jobs' element={<Jobs/>} />
           <Route path='/jobs/:id/start' element={<StartJob/>} />
+          <Route path='/ticket/:id' element={<TicketDetails/>} />
           <Route path='/payments' element={<Payments/>} />
           <Route path='/profile' element={<Profile/>} />
           <Route path='/kyc' element={<KYC/>} />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { toast } from 'react-hot-toast'
 
 const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
 
@@ -32,6 +33,8 @@ export default function StartJob(){
   const [rateCostData, setRateCostData] = useState(null) // { totalCost, breakdown: [{service, cost}] }
   const [otpSendError, setOtpSendError] = useState("")
   const [otpVerifyError, setOtpVerifyError] = useState("")
+  const [otpSendLoading, setOtpSendLoading] = useState(false)
+  const [otpVerifyLoading, setOtpVerifyLoading] = useState(false)
   
   // Update Zoho ticket (local backend) when proceeding to OTP
   const submitZohoTicketUpdate = async () => {
@@ -384,15 +387,21 @@ export default function StartJob(){
       setOtpVerifyError("")
       // const phone = (localStorage.getItem('mobile') || '').trim() || (ticketData?.phone || '').trim()
       const p = localStorage.getItem('user')
-      const phone = p?.mobile || ''
+      console.log('p', JSON.parse(p))
+      const phone = JSON.parse(p)?.mobile || ''
       const otpCode = otp.join('').trim()
+        console.log('phone', phone)
+      console.log('otpCode', otpCode)
+
       if (!phone || !otpCode) {
         setOtpVerifyError('Enter OTP to continue')
         return false
       }
+    
       const base = 'https://pwa-connect-api.jktyre.co.in'
-      const url = `${base}/api/driver/verify-otp-mechanic?phone=${phone}&otp=${otpCode}`
+      const url = `${base}/api/driver/verify-otp-mechanic?phoneNo=${phone}&otp=${otpCode}`
       const res = await fetch(url, { method: 'GET' })
+      console.log('res', res)
       if (!res.ok) {
         const text = await res.text()
         setOtpVerifyError(text || 'Invalid OTP')
@@ -1032,30 +1041,42 @@ export default function StartJob(){
           )}
           <div className='btn-center'>
             <button
-              className='btn'
+              className={`btn ${otpSendLoading ? 'btn-loading' : ''}`}
               onClick={async () => {
-                // Ensure cost data fetched
-                if (!rateCostData) {
-                  await fetchRateCardCosts()
+                try {
+                  setOtpSendLoading(true)
+                  setOtpSendError("")
+                  
+                  // Ensure cost data fetched
+                  if (!rateCostData) {
+                    await fetchRateCardCosts()
+                  }
+
+                  // Attempt to send OTP before any further actions
+                  const sent = await sendOtpToPhone()
+                  if (!sent) {
+                    // Do not proceed if OTP could not be sent
+                    setOtpSendError('Failed to send OTP. Please try again.')
+                    return
+                  }
+
+                  // Update Zoho ticket with array-of-strings photos
+                  await submitZohoTicketUpdate()
+
+                  // Save full payload pre-OTP (FormData route)
+                  await submitJobPreOtp();
+
+                  setCurrentScreen('otp-verification');
+                } catch (error) {
+                  console.error('Error proceeding to OTP:', error)
+                  setOtpSendError('Failed to proceed to OTP verification. Please try again.')
+                } finally {
+                  setOtpSendLoading(false)
                 }
-
-                // Attempt to send OTP before any further actions
-                const sent = await sendOtpToPhone()
-                if (!sent) {
-                  // Do not proceed if OTP could not be sent
-                  return
-                }
-
-                // Update Zoho ticket with array-of-strings photos
-                await submitZohoTicketUpdate()
-
-                // Save full payload pre-OTP (FormData route)
-                await submitJobPreOtp();
-
-                setCurrentScreen('otp-verification');
               }}
+              disabled={otpSendLoading}
             >
-              Continue to OTP Verification
+              {otpSendLoading ? 'Sending OTP...' : 'Continue to OTP Verification'}
             </button>
           </div>
         </div>
@@ -1112,9 +1133,41 @@ export default function StartJob(){
               </div>
             </div>
 
+            {/* OTP Verification Error */}
+            {otpVerifyError && (
+              <div className='text-field' style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>
+                {otpVerifyError}
+              </div>
+            )}
+
             <div style={{textAlign: 'center', marginBottom: 32}}>
               <p className='caption-text'>
-                Didn't Get The Code? <span style={{color: 'var(--brand)', cursor: 'pointer'}}>Resend Code</span>
+                Didn't Get The Code? <span 
+                  style={{
+                    color: 'var(--brand)', 
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                  onClick={async () => {
+                    try {
+                      setOtpSendLoading(true)
+                      setOtpSendError("")
+                      const sent = await sendOtpToPhone()
+                      if (sent) {
+                        toast.success('OTP resent successfully')
+                      } else {
+                        setOtpSendError('Failed to resend OTP. Please try again.')
+                      }
+                    } catch (error) {
+                      console.error('Error resending OTP:', error)
+                      setOtpSendError('Failed to resend OTP. Please try again.')
+                    } finally {
+                      setOtpSendLoading(false)
+                    }
+                  }}
+                >
+                  Resend Code
+                </span>
               </p>
             </div>
 
@@ -1132,20 +1185,38 @@ export default function StartJob(){
 
           {/* Verify Button */}
           <div className='btn-center'>
-            <button className='btn' onClick={async () => {
-              // 1) Mark Zoho ticket completed via local API
-              await submitZohoVerifyCompleted()
-              // 2) Final submit with arrays of File objects
-              // await submitFinalAfterOtp()
-              await verifyOtpWithServer()
-              // 3) UI success & redirect to Home/Dashboard
-              setShowSuccessModal(true)
-              setTimeout(() => {
-                setShowSuccessModal(false)
-                nav('/')
-              }, 1200)
-            }}>
-              Verify OTP
+            <button 
+              className={`btn ${otpVerifyLoading ? 'btn-loading' : ''}`}
+              onClick={async () => {
+                try {
+                  setOtpVerifyLoading(true)
+                  setOtpVerifyError("")
+                  
+                  // 1) Verify OTP first; only then mark Zoho ticket completed
+                  const otpVerified = await verifyOtpWithServer()
+                  console.log('otpVerified', otpVerified)
+                  if (!otpVerified) {
+                    setOtpVerifyError('OTP verification failed. Please try again.')
+                    setOtp(['', '', '', '']) // Clear OTP input on error
+                    return
+                  }
+
+                  // 2) Mark Zoho ticket completed via local API (best-effort; do not block UI if it fails)
+                  await submitZohoVerifyCompleted()
+                  
+                  // 3) UI success & redirect to Home/Dashboard
+                  setShowSuccessModal(true)
+                } catch (error) {
+                  console.error('Error verifying OTP:', error)
+                  setOtpVerifyError('OTP verification failed. Please try again.')
+                  setOtp(['', '', '', '']) // Clear OTP input on error
+                } finally {
+                  setOtpVerifyLoading(false)
+                }
+              }}
+              disabled={otpVerifyLoading}
+            >
+              {otpVerifyLoading ? 'Verifying...' : 'Verify OTP'}
             </button>
           </div>
         </div>
