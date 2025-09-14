@@ -27,8 +27,15 @@ export default function Home(){
           throw new Error(text || `HTTP ${res.status}`);
         }
         const data = await res.json();
-        setTickets(data.tickets || []);
-        setFilteredTickets(data.tickets || []);
+        
+        // Transform API data to match our component structure
+        const transformedTickets = (data.tickets || []).map(ticket => ({
+          ...ticket,
+          paymentStatus: ticket.paymentStatus || (ticket.status === 'Completed' ? 'paid' : 'pending')
+        }));
+        
+        setTickets(transformedTickets);
+        setFilteredTickets(transformedTickets);
       } catch (err) {
         setError(err.message || "Failed to fetch tickets");
       } finally {

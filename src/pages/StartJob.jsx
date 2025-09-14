@@ -980,14 +980,14 @@ export default function StartJob(){
                   <span className='text-field'>Customer Mob no:</span>
                   <span className='text-field'>{repairData.customerMobile}</span>
                 </div>
-                <div className='row' style={{justifyContent: 'space-between'}}>
+                {/* <div className='row' style={{justifyContent: 'space-between'}}>
                   <span className='text-field'>Fleet Name:</span>
                   <span className='text-field'>{repairData.fleetName}</span>
-                </div>
-                <div className='row' style={{justifyContent: 'space-between'}}>
+                </div> */}
+                {/* <div className='row' style={{justifyContent: 'space-between'}}>
                   <span className='text-field'>Stencil No:</span>
                   <span className='text-field'>{repairData.stencilNo}</span>
-                </div>
+                </div> */}
                 <div className='row' style={{justifyContent: 'space-between'}}>
                   <span className='text-field'>Tyre Type:</span>
                   <span className='text-field'>{repairData.tyreType}</span>

@@ -51,9 +51,11 @@ export default function Jobs(){
           dueDate: ticket.dueDate,
           assigneeId: ticket.assigneeId,
           email: ticket.email,
+          paymentStatus: ticket.paymentStatus || (ticket.status === 'Completed' ? 'paid' : 'pending'),
           originalTicket: ticket // Keep original data for reference
         }))
         
+        console.log('Transformed tickets:', transformedTickets)
         setTickets(transformedTickets)
       } catch (err) {
         console.error('Error fetching tickets:', err)

@@ -5,6 +5,11 @@ import { useNavigate } from 'react-router-dom'
 export default function JobCard({ job, showPriority = false, showCategory = false, fullTicket = null }){
   const nav = useNavigate()
   
+  // Debug: Log job data to see what we're getting
+  console.log('JobCard job data:', job)
+  console.log('Job issue:', job.issue)
+  console.log('Job paymentStatus:', job.paymentStatus)
+  
   // Get priority color
   const getPriorityColor = (priority) => {
     switch (priority?.toLowerCase()) {
@@ -20,6 +25,8 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
     switch (status?.toLowerCase()) {
       case 'open': return '#10b981'
       case 'closed': return '#6b7280'
+      case 'completed': return '#10b981'
+      case 'paid': return '#059669'
       case 'in progress': return '#f59e0b'
       default: return '#6b7280'
     }
@@ -58,6 +65,24 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
             {job.priority} Priority
           </div>
         )}
+
+        {/* Payment Status Badge - Show for completed jobs */}
+        {/* {job.issue === 'Completed' && (
+          <div style={{
+            background: (job.paymentStatus === 'paid') ? '#059669' : '#f59e0b',
+            color: 'white',
+            padding: '4px 12px',
+            borderRadius: '16px',
+            fontSize: '12px',
+            fontWeight: '600',
+            alignSelf: 'flex-start',
+            marginBottom: '8px',
+            textTransform: 'capitalize',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            {(job.paymentStatus === 'paid') ? '✓ Paid' : '⏳ Pending Payment'}
+          </div>
+        )} */}
         
         <div className='vehicle-number'>{job.customer}</div>
         <div className='customer-info'>Phone: {job.mobile} | Email: {job.email || 'N/A'}</div>
@@ -74,7 +99,7 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
           <div className='ticket-issue-label'>Job Status</div>
           <div className='ticket-issue-content'>
             <div className='issue-text' style={{color: getStatusColor(job.issue)}}>{job.issue}</div>
-            {job.issue=="Completed"? "":     <button className='start-job-btn' onClick={(e) => {
+            {job.issue === "Completed" ? "" : <button className='start-job-btn' onClick={(e) => {
               e.stopPropagation()
               nav(`/jobs/${job.id}/start`)
             }}>Start Job</button>}
