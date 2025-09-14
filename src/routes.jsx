@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Jobs from './pages/Jobs'
 import Payments from './pages/Payments'
 import Profile from './pages/Profile'
+import ChangePIN from './pages/ChangePIN'
 import KYC from './pages/KYC'
 import InvoiceHistory from './pages/InvoiceHistory'
 import RateCard from './pages/RateCard'
@@ -30,6 +31,7 @@ export default function AppRoutes({ authed }){
           <Route path='/ticket/:id' element={<TicketDetails/>} />
           <Route path='/payments' element={<Payments/>} />
           <Route path='/profile' element={<Profile/>} />
+          <Route path='/change-pin' element={<ChangePIN/>} />
           <Route path='/kyc' element={<KYC/>} />
           <Route path='/invoice-history' element={<InvoiceHistory/>} />
           <Route path='/rate-card' element={<RateCard/>} />

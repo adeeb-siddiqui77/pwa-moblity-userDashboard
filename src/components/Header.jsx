@@ -17,7 +17,7 @@ export default function Header({ onMenu }){
         {/* <img src='/logo.svg' alt='logo'/> */}
         <div className='brand-title'>JK Tyre PWA</div>
       </div>
-      <div style={{marginLeft:'auto', color:'#6b7280'}} className='text-field'>{titleMap[pathname] || ''}</div>
+      {/* <div style={{marginLeft:'auto', color:'#6b7280'}} className='text-field'>{titleMap[pathname] || ''}</div> */}
     </div>
   )
 }

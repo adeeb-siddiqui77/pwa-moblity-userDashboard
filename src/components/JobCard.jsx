@@ -71,7 +71,7 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
         )}
         
         <div className='ticket-issue-section'>
-          <div className='ticket-issue-label'>Status</div>
+          <div className='ticket-issue-label'>Job Status</div>
           <div className='ticket-issue-content'>
             <div className='issue-text' style={{color: getStatusColor(job.issue)}}>{job.issue}</div>
             {job.issue=="Completed"? "":     <button className='start-job-btn' onClick={(e) => {
