@@ -9,6 +9,59 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
   console.log('JobCard job data:', job)
   console.log('Job issue:', job.issue)
   console.log('Job paymentStatus:', job.paymentStatus)
+  console.log('Job createdAt:', job.createdAt)
+  console.log('Job originalTicket createdAt:', job.originalTicket?.createdAt)
+  
+  // Format time based on date
+  const formatTime = (createdAt) => {
+    console.log('formatTime called with:', createdAt, 'type:', typeof createdAt)
+    
+    if (!createdAt) {
+      console.log('No createdAt provided')
+      return 'N/A'
+    }
+    
+    // If it's already a formatted time string, return it as is
+    if (typeof createdAt === 'string' && !createdAt.includes('T') && !createdAt.includes('-')) {
+      console.log('Returning formatted time string:', createdAt)
+      return createdAt
+    }
+    
+    const ticketDate = new Date(createdAt)
+    console.log('Parsed date:', ticketDate)
+    
+    // Check if the date is valid
+    if (isNaN(ticketDate.getTime())) {
+      console.log('Invalid date:', createdAt)
+      return 'N/A'
+    }
+    
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    // Reset time to compare only dates
+    const ticketDateOnly = new Date(ticketDate.getFullYear(), ticketDate.getMonth(), ticketDate.getDate())
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+    
+    if (ticketDateOnly.getTime() === todayOnly.getTime()) {
+      // Today - show time
+      return ticketDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    } else if (ticketDateOnly.getTime() === yesterdayOnly.getTime()) {
+      // Yesterday
+      return 'Yesterday'
+    } else {
+      // Other days - show day of week
+      return ticketDate.toLocaleDateString('en-US', { 
+        weekday: 'short' 
+      })
+    }
+  }
   
   // Get priority color
   const getPriorityColor = (priority) => {
@@ -47,7 +100,9 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
       <div className='job-card-content'>
         <div className='job-card-header'>
           <div className='ticket-id'>Ticket ID: #{job.vehicle}</div>
-          <div className='job-time'>Time: {job.time}</div>
+          <div className='job-time'>
+            {formatTime(job.createdAt || job.originalTicket?.createdAt) || job.time || 'N/A'}
+          </div>
         </div>
         
         {/* Priority Badge */}

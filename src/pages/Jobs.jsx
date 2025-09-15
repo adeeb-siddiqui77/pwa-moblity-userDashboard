@@ -37,6 +37,8 @@ export default function Jobs(){
         
         const data = await response.json()
         console.log('API Response:', data)
+        console.log('First ticket from API:', data.tickets?.[0])
+        console.log('First ticket createdAt:', data.tickets?.[0]?.createdAt)
         
         // Transform API data to match our component structure
         const transformedTickets = data.tickets.map(ticket => ({
@@ -46,6 +48,7 @@ export default function Jobs(){
           mobile: ticket.phone || 'No Phone',
           issue: ticket.status || 'Unknown',
           time: new Date(ticket.createdAt).toLocaleTimeString(),
+          createdAt: ticket.createdAt, // Add createdAt for time formatting
           priority: ticket.priority,
           category: ticket.category,
           dueDate: ticket.dueDate,
@@ -54,6 +57,11 @@ export default function Jobs(){
           paymentStatus: ticket.paymentStatus || (ticket.status === 'Completed' ? 'paid' : 'pending'),
           originalTicket: ticket // Keep original data for reference
         }))
+        
+        console.log('Sample transformed ticket:', transformedTickets[0])
+        console.log('Sample ticket createdAt:', transformedTickets[0]?.createdAt)
+        console.log('Sample ticket originalTicket:', transformedTickets[0]?.originalTicket)
+        console.log('Sample ticket originalTicket createdAt:', transformedTickets[0]?.originalTicket?.createdAt)
         
         console.log('Transformed tickets:', transformedTickets)
         setTickets(transformedTickets)

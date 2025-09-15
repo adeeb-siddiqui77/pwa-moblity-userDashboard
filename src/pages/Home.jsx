@@ -31,8 +31,16 @@ export default function Home(){
         // Transform API data to match our component structure
         const transformedTickets = (data.tickets || []).map(ticket => ({
           ...ticket,
+          id: ticket._id,
+          vehicle: ticket.zohoTicketId,
+          customer: ticket.subject || 'No Subject',
+          mobile: ticket.phone || 'No Phone',
+          issue: ticket.status || 'Unknown',
+          createdAt: ticket.createdAt, // Add createdAt for time formatting
           paymentStatus: ticket.paymentStatus || (ticket.status === 'Completed' ? 'paid' : 'pending')
         }));
+        
+        console.log('Sample transformed ticket from Home:', transformedTickets[0])
         
         setTickets(transformedTickets);
         setFilteredTickets(transformedTickets);
@@ -124,6 +132,7 @@ export default function Home(){
               priority: t.priority,
               category: t.category,
               dueDate: t.dueDate,
+              createdAt: t.createdAt,
               time: new Date(t.createdAt).toLocaleTimeString()
             }}
             fullTicket={t}

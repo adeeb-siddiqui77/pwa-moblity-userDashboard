@@ -390,7 +390,7 @@ export default function StartJob(){
       console.log('p', JSON.parse(p))
       const phone = JSON.parse(p)?.mobile || ''
       const otpCode = otp.join('').trim()
-        console.log('phone', phone)
+      console.log('phone', phone)
       console.log('otpCode', otpCode)
 
       if (!phone || !otpCode) {
@@ -401,14 +401,27 @@ export default function StartJob(){
       const base = 'https://pwa-connect-api.jktyre.co.in'
       const url = `${base}/api/driver/verify-otp-mechanic?phoneNo=${phone}&otp=${otpCode}`
       const res = await fetch(url, { method: 'GET' })
-      console.log('res', res)
+      console.log('OTP verification response status:', res.status)
+      
       if (!res.ok) {
         const text = await res.text()
+        console.log('OTP verification error response:', text)
         setOtpVerifyError(text || 'Invalid OTP')
         return false
       }
+
+      // Parse the response body to check if OTP is valid
+      const responseData = await res.json()
+      console.log('OTP verification response data:', responseData)
+      
+      if (!responseData.valid) {
+        setOtpVerifyError('Invalid OTP. Please check and try again.')
+        return false
+      }
+
       return true
     } catch (err) {
+      console.error('OTP verification error:', err)
       setOtpVerifyError(err?.message || 'OTP verification failed')
       return false
     }
@@ -1174,11 +1187,11 @@ export default function StartJob(){
             {/* Call Support */}
             <div style={{background: '#f8fafc', borderRadius: 12, padding: 16}}>
               <div className='row' style={{alignItems: 'center', justifyContent: 'center'}}>
-                <span className='text-field' style={{marginRight: 8}}>Call Support:</span>
-                <span className='text-field' style={{marginRight: 8}}>{supportNumber}</span>
-                <button style={{background: 'var(--brand)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}>
+                {/* <span className='text-field' style={{marginRight: 8}}>Call Support:</span>
+                <span className='text-field' style={{marginRight: 8}}>{supportNumber}</span> */}
+                {/* <button style={{background: 'var(--brand)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}>
                   <span style={{color: 'white', fontSize: '16px'}}>📞</span>
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
