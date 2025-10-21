@@ -1,0 +1,123 @@
+.rq-tiles { }
+
+.rq-empty {
+  padding: 16px;
+  text-align: center;
+  color: #6b7280; /* gray-500 */
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+}
+
+/* responsive grid */
+.rq-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 480px) {
+  .rq-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 768px) {
+  .rq-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.rq-tile {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  padding: 12px;
+  border: 1px solid #f3f4f6; /* gray-100 */
+}
+
+.rq-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.rq-title {
+  font-weight: 800;
+  font-size: 16px;
+  color: #b91c1c; /* red-700 */
+}
+
+.rq-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3f4f6; /* gray-100 */
+  font-weight: 700;
+  font-size: 14px;
+  color: #111827; /* gray-900 */
+}
+
+.rq-eta {
+  margin: 4px 0 8px 0;
+  color: #b91c1c;
+  font-weight: 700;
+}
+.rq-eta span { margin-right: 6px; }
+
+.rq-info {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #111827;
+}
+.rq-muted { color: #6b7280; }
+
+/* actions */
+.rq-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rq-btn {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.1s ease, opacity 0.2s ease;
+}
+
+.rq-btn:active { transform: translateY(1px); }
+
+.rq-btn-reject {
+  background: #B22222;
+  color: #fff;
+}
+.rq-btn-reject:hover { box-shadow: 0 6px 16px rgba(178,34,34,0.35); }
+
+.rq-btn-accept {
+  background: #16a34a;
+  color: #fff;
+}
+.rq-btn-accept:hover { box-shadow: 0 6px 16px rgba(22,163,74,0.35); }
+
+.rq-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* status */
+.rq-status { margin-top: 10px; }
+.rq-badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.rq-pending  { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
+.rq-accepted { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.rq-rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.rq-expired  { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }

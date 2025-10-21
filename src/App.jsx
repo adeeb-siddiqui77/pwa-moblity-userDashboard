@@ -9,6 +9,9 @@ import MechanicSocket from "./components/MechanicSocket"
 import MechanicAlertModal from './components/MechanicAlertModal';
 import MechanicAlertsCenter from './components/MechanicAlertsCenter'
 import MechanicRequestsCarousel from './components/MechanicRequestsCarousel'
+import { RequestsProvider } from './store/RequestsProvider'
+
+
 
 
 export default function App() {
@@ -27,27 +30,37 @@ export default function App() {
 
   return (
     <div className='mobile-shell'>
-      {authed && <Header onMenu={() => setDrawerOpen(true)} />}
-      <AppRoutes authed={authed} />
-      {authed && <BottomNav />}
-      <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      {/* {authed && user?.id && (
+      <RequestsProvider mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL}>
+
+
+        {authed && <Header onMenu={() => setDrawerOpen(true)} />}
+        <AppRoutes authed={authed} />
+        {authed && <BottomNav />}
+        <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+        {/* {authed && user?.id && (
         <MechanicAlertModal mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL} />
       )} */}
 
-      {/* {authed && user?.id && (
+        {/* {authed && user?.id && (
         <MechanicAlertsCenter mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL}} />
       )} */}
-      
-      {authed && user?.id && (
-        <MechanicRequestsCarousel mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL}
-      />
-      )}
+
+        {/* {authed && user?.id && (
+          <MechanicRequestsCarousel mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL}
+          />
+        )} */}
+
+        {authed && user?.id && (
+          <MechanicRequestsCarousel />
+        )}
 
 
-      {/* Toasts */}
-      <Toaster position='top-center' toastOptions={{ duration: 2500 }} />
+        {/* Toasts */}
+        <Toaster position='top-center' toastOptions={{ duration: 2500 }} />
+
+      </RequestsProvider>
     </div>
   )
 }

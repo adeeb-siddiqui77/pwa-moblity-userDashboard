@@ -1,262 +1,52 @@
-// src/components/MechanicRequestsCarousel.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { initSocket, registerMechanic, on, off, emit } from '../services/socketClient';
-import RequestCard from './RequestCard';
+import 'swiper/css';
+import { useRequests } from '../store/RequestsProvider';
+
+
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
-const wrapKey = (jobId, attemptIndex) => `${jobId}:${attemptIndex}`;
+import DoneIcon from '@mui/icons-material/Done';
+import CloseIcon from '@mui/icons-material/Close';
 
-export default function MechanicRequestsCarousel({ mechanicId, serverUrl }) {
-  const [alerts, setAlerts] = useState([]); // [{key, jobId, attemptIndex, issue, eta, endTs, remaining, customer, phone, vehicle}]
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const tickRef = useRef(null);
-  const swiperRef = useRef(null);
-  const ringerRef = useRef(null);
-
-  // init socket + register mechanic
-  useEffect(() => {
-    if (!mechanicId) return;
-    const socket = initSocket(serverUrl, { mechanicId });
-
-    const onConnect = () => {
-      registerMechanic(mechanicId).then((ack) => {
-        console.log('[carousel] registered:', ack);
-      });
-    };
-    socket.on('connect', onConnect);
-
-    const handleJobAlert = (payload) => {
-      // allow additional fields for UI (customer/phone/vehicle) if you include them in payload
-      // payload: { jobId, attemptIndex, issue, eta, expiresAt, slaSeconds, customerName, customerPhone, vehicleType }
-      const key = wrapKey(payload.jobId, payload.attemptIndex);
-      const endTs = payload.expiresAt
-        ? new Date(payload.expiresAt).getTime()
-        : Date.now() + (payload.slaSeconds || 120) * 1000;
-
-      setAlerts((prev) => {
-        if (prev.some((a) => a.key === key)) return prev; // dedupe
-        const item = {
-          key,
-          jobId: payload.jobId,
-          attemptIndex: payload.attemptIndex,
-          issue: payload.issue || payload.ticketSummary || 'New Request',
-          eta: payload.eta || '—',
-          endTs,
-          remaining: Math.max(0, Math.ceil((endTs - Date.now()) / 1000)),
-          customerName: payload.customerName || '',
-          customerPhone: payload.customerPhone || '',
-          vehicleType: payload.vehicleType || ''
-        };
-        const next = [item, ...prev];
-        return next;
-      });
-      setOpen(true);
-      tryPlayRinger();
-    };
-
-    const handleExpired = (p) => {
-      const key = wrapKey(p.jobId, p.attemptIndex);
-      setAlerts((prev) => prev.filter((a) => a.key !== key));
-    };
-
-    on('job_alert', handleJobAlert);
-    on('job_alert_expired', handleExpired);
-
-    return () => {
-      off('job_alert', handleJobAlert);
-      off('job_alert_expired', handleExpired);
-      socket.off('connect', onConnect);
-    };
-  }, [mechanicId, serverUrl]);
-
-  // global tick for all countdowns
-  useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    tickRef.current = setInterval(() => {
-      setAlerts((prev) => {
-        if (prev.length === 0) return prev;
-        const now = Date.now();
-        return prev.map((a) => ({
-          ...a,
-          remaining: Math.max(0, Math.ceil((a.endTs - now) / 1000))
-        }));
-      });
-    }, 1000);
-    return () => clearInterval(tickRef.current);
-  }, []);
-
-  // auto-close the sheet when empty
-  useEffect(() => {
-    if (alerts.length === 0) {
-      setOpen(false);
-      stopRinger();
-      setActiveIndex(0);
-    } else {
-      setOpen(true);
-    }
-  }, [alerts.length]);
-
-  // ringer helpers
-  const tryPlayRinger = () => {
-    if (!ringerRef.current) {
-      ringerRef.current = new Audio('/ringtones/alert.mp3');
-      ringerRef.current.loop = true;
-      ringerRef.current.volume = 0.7;
-    }
-    ringerRef.current.play().catch(() => {});
-  };
-  const stopRinger = () => {
-    if (ringerRef.current) {
-      try {
-        ringerRef.current.pause();
-        ringerRef.current.currentTime = 0;
-      } catch {}
-    }
-  };
-
-  const formatRemaining = (s) => {
-    const mm = String(Math.floor(s / 60)).padStart(2, '0');
-    const ss = String(s % 60).padStart(2, '0');
-    return `${mm}:${ss}`;
-  };
-
-  const onAccept = (a) => {
-    emit('job_response', { jobId: a.jobId, attemptIndex: a.attemptIndex, response: 'accept' }, (ack) => {
-      console.log('[carousel] accept ack', ack);
-      removeAndAdvance(a.key);
-    });
-  };
-
-  const onReject = (a) => {
-    emit('job_response', { jobId: a.jobId, attemptIndex: a.attemptIndex, response: 'reject' }, (ack) => {
-      console.log('[carousel] reject ack', ack);
-      removeAndAdvance(a.key);
-    });
-  };
-
-  const removeAndAdvance = (key) => {
-    setAlerts((prev) => {
-      const idx = prev.findIndex((x) => x.key === key);
-      const next = prev.filter((x) => x.key !== key);
-      // auto-next logic: if we removed the active slide,
-      // keep the same index (which now points to the next item),
-      // or clamp to last item if needed
-      if (idx === activeIndex && swiperRef.current) {
-        const s = swiperRef.current;
-        // move to same index (now new item), or previous if out of range
-        const target = Math.min(activeIndex, Math.max(0, next.length - 1));
-        setTimeout(() => s.slideTo(target), 0);
-        setActiveIndex(target);
-      }
-      return next;
-    });
-  };
-
-  if (!open) return null;
-
-  return (
-    <div style={sheetWrap}>
-      <div style={sheetHeader}>
-        <div style={{ fontWeight: 700 }}>Requests</div>
-        <button onClick={() => setOpen(false)} style={xBtn}>✕</button>
-      </div>
-
-      <div style={sheetBody}>
-        <Swiper
-          onSwiper={(s) => (swiperRef.current = s)}
-          onSlideChange={(s) => setActiveIndex(s.activeIndex)}
-          slidesPerView={1}
-          spaceBetween={16}
-        >
-          {alerts.map((a) => (
-            <SwiperSlide key={a.key}>
-              <RequestCard
-                title={a.issue}
-                eta={a.eta}
-                timer={formatRemaining(a.remaining)}
-                customerName={a.customerName}
-                customerPhone={a.customerPhone}
-                vehicleType={a.vehicleType}
-                disabled={a.remaining <= 0}
-                onAccept={() => onAccept(a)}
-                onReject={() => onReject(a)}
-              />
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      </div>
-
-      {/* footer strip with arrows + pagination  */}
-      <div style={footerWrap}>
-        <button
-          onClick={() => swiperRef.current && swiperRef.current.slidePrev()}
-          style={navBtn}
-          aria-label="Prev"
-        >
-          <ArrowBackIcon />
-        </button>
-
-        <div style={pagerText}>
-          {alerts.length ? `${activeIndex + 1}/${alerts.length}` : '0/0'}
-        </div>
-
-        <button
-          onClick={() => swiperRef.current && swiperRef.current.slideNext()}
-          style={navBtn}
-          aria-label="Next"
-        >
-          <ArrowForwardIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- styles (inline to keep it self-contained) ---------------- */
-
+// simple inline styles so you don't need extra CSS files
 const sheetWrap = {
   position: 'fixed',
   left: 0,
   right: 0,
   bottom: 0,
-  background: 'linear-gradient(180deg, #fff 0%, #FFD39F 100%)',
-  boxShadow: '0 -8px 24px rgba(0,0,0,0.2)',
+  zIndex: 9999,
   borderTopLeftRadius: 16,
   borderTopRightRadius: 16,
-  padding: '12px 12px 12px',
-  zIndex: 9999
+  background: 'linear-gradient(180deg, #FFFFFF 0%, #FFD39F 100%)',
+  boxShadow: '0 -8px 24px rgba(0,0,0,0.2)',
+  padding: '12px'
 };
-
-const sheetHeader = {
+const headerRow = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '0 6px 10px 6px'
+  padding: '0 4px 10px 4px'
 };
-
-const xBtn = {
-  background: 'transparent',
+const closeBtn = {
+  height: 32,
+  width: 32,
+  borderRadius: '50%',
   border: 'none',
-  fontSize: 18,
+  background: 'transparent',
   cursor: 'pointer',
-  lineHeight: 1
+  color: '#4B5563',
+  fontSize: 18,
+  lineHeight: 1,
 };
-
-const sheetBody = {
-  padding: '0 4px 8px 4px'
-};
-
-const footerWrap = {
+const footerRow = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   gap: 20,
   paddingBottom: 6
 };
-
 const navBtn = {
   width: 36,
   height: 36,
@@ -267,7 +57,204 @@ const navBtn = {
   fontSize: 20,
   cursor: 'pointer'
 };
+const pagerText = { fontWeight: 700, color: '#1F2937' };
 
-const pagerText = {
-  fontWeight: 700
+export default function MechanicRequestsCarousel() {
+  const { items, accept, reject, format } = useRequests();
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const swiperRef = useRef(null);
+  const ringerRef = useRef(null);
+
+  // open/close when items change
+  useEffect(() => {
+    if (items.length > 0) {
+      setOpen(true);
+      tryPlayRinger();
+    } else {
+      setOpen(false);
+      stopRinger();
+      setActiveIndex(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
+
+  const tryPlayRinger = () => {
+    if (!ringerRef.current) {
+      ringerRef.current = new Audio('/ringtones/alert.mp3');
+      ringerRef.current.loop = true;
+      ringerRef.current.volume = 0.7;
+    }
+    ringerRef.current.play().catch(() => {});
+  };
+
+  const stopRinger = () => {
+    if (!ringerRef.current) return;
+    try { ringerRef.current.pause(); ringerRef.current.currentTime = 0; } catch {}
+  };
+
+  const autoNextAfterRemove = () => {
+    // Swiper recalculates slides; slide to a valid index next tick
+    setTimeout(() => {
+      if (!swiperRef.current) return;
+      const totalAfterRemoval = items.length - 1;
+      const target = Math.min(activeIndex, Math.max(0, totalAfterRemoval - 1));
+      swiperRef.current.slideTo(target);
+      setActiveIndex(target);
+    }, 0);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div style={sheetWrap}>
+      {/* Header */}
+      <div style={headerRow}>
+        <div style={{ fontWeight: 700, color: '#1F2937' }}>Requests</div>
+        <button aria-label="Close" style={closeBtn} onClick={() => setOpen(false)}>✕</button>
+      </div>
+
+      {/* Carousel */}
+      <div style={{ padding: '0 4px 8px 4px' }}>
+        <Swiper
+          onSwiper={(s) => (swiperRef.current = s)}
+          onSlideChange={(s) => setActiveIndex(s.activeIndex)}
+          slidesPerView={1}
+          spaceBetween={16}
+        >
+          {items.map((a) => (
+            <SwiperSlide key={a.key}>
+              <RequestCard
+                data={a}
+                format={format}
+                onAccept={() => accept(a, autoNextAfterRemove)}
+                onReject={() => reject(a, autoNextAfterRemove)}
+              />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </div>
+
+      {/* Footer (arrows + pagination) */}
+      <div style={footerRow}>
+        <button
+          aria-label="Prev"
+          style={navBtn}
+          onClick={() => swiperRef.current && swiperRef.current.slidePrev()}
+        > <ArrowBackIcon /> </button>
+
+        <div style={pagerText}>
+          {items.length ? `${activeIndex + 1}/${items.length}` : '0/0'}
+        </div>
+
+        <button
+          aria-label="Next"
+          style={navBtn}
+          onClick={() => swiperRef.current && swiperRef.current.slideNext()}
+        > <ArrowForwardIcon /> </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Card (pure CSS styles inline) ---------------- */
+
+const cardWrap = {
+  background: '#fff',
+  borderRadius: 12,
+  padding: 14,
+  boxShadow: '0 10px 24px rgba(0,0,0,0.15)'
 };
+const cardHeader = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8
+};
+const cardTitle = { fontWeight: 800, fontSize: 18, color: '#111827' };
+const timerPill = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 10px',
+  borderRadius: 20,
+  background: '#F5F5F7',
+  fontWeight: 700,
+  fontSize: 14,
+  color: '#111827'
+};
+const etaRow = { margin: '4px 0 10px 0' };
+const etaLabel = { color: '#B22222', fontWeight: 700, marginRight: 6 };
+const etaText = { fontWeight: 600 };
+const infoRow = { margin: '6px 0', fontSize: 14, color: '#111827' };
+const infoMuted = { color: '#6B7280' };
+const ctaRow = { display: 'flex', gap: 10, marginTop: 14 , alignItems : 'center' };
+const btn = {
+  flex: 1,
+  border: 'none',
+  borderRadius: 8,
+  padding: '5px',
+  fontSize: 12,
+  fontWeight: 100,
+  cursor: 'pointer',
+  transition: 'transform .05s ease, box-shadow .1s ease, opacity .2s ease'
+};
+const btnReject = { ...btn, background: '#A10F0F', color: '#fff' };
+const btnAccept = { ...btn, background: '#268F00', color: '#fff' };
+const btnDisabled = { opacity: 0.6, cursor: 'not-allowed', boxShadow: 'none' };
+
+function RequestCard({ data, format, onAccept, onReject }) {
+  const disabled = Number(data.remaining || 0) <= 0;
+
+  return (
+    <div style={cardWrap}>
+      <div style={cardHeader}>
+        <div style={cardTitle}>{data.issue || 'Request'}</div>
+        <div style={timerPill}>
+          <span aria-hidden>⏱</span>
+          {format(data.remaining)}
+        </div>
+      </div>
+
+      <div style={etaRow}>
+        <span style={etaLabel}>ETA :</span>
+        <span style={etaText}>{data.eta || '—'}</span>
+      </div>
+
+      {data.customerName ? (
+        <div style={infoRow}><strong>{data.customerName}</strong></div>
+      ) : null}
+
+      {data.customerPhone ? (
+        <div style={infoRow}>
+          <span style={infoMuted}>Mobile No. :</span>
+          <strong style={{ marginLeft: 6 }}>{data.customerPhone}</strong>
+        </div>
+      ) : null}
+
+      {data.vehicleType ? (
+        <div style={infoRow}>
+          <span style={infoMuted}>Vehicle Type :</span>
+          <strong style={{ marginLeft: 6 }}>{data.vehicleType}</strong>
+        </div>
+      ) : null}
+
+      <div style={ctaRow}>
+        <button
+          onClick={onReject}
+          disabled={disabled}
+          style={disabled ? { ...btnReject, ...btnDisabled } : btnReject}
+        >
+          <CloseIcon/>
+        </button>
+        <button
+          onClick={onAccept}
+          disabled={disabled}
+          style={disabled ? { ...btnAccept, ...btnDisabled } : btnAccept}
+        >
+          <DoneIcon/>
+        </button>
+      </div>
+    </div>
+  );
+}
