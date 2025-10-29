@@ -11,7 +11,7 @@ let optionsUsed = null;
 export function initSocket(serverUrl, { mechanicId, token, path } = {}) {
   if (socket) return socket;
 
-  const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+  const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'http://localhost:9897';
   optionsUsed = { url, mechanicId };
 
   socket = io(url, {

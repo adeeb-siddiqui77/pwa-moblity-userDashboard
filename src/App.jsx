@@ -31,7 +31,7 @@ export default function App() {
   return (
     <div className='mobile-shell'>
 
-      <RequestsProvider mechanicId={user.id} serverUrl={import.meta.env.VITE_SOCKET_URL}>
+      <RequestsProvider mechanicId={user?.id} serverUrl={import.meta.env.VITE_SOCKET_URL}>
 
 
         {authed && <Header onMenu={() => setDrawerOpen(true)} />}
