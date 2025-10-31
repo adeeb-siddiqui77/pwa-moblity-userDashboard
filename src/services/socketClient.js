@@ -11,35 +11,31 @@ let optionsUsed = null;
 export function initSocket(serverUrl, { mechanicId, token, path } = {}) {
   if (socket) return socket;
 
-  const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'http://localhost:9897';
-  optionsUsed = { url, mechanicId };
+  const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'ws://localhost:7989';
 
   socket = io(url, {
     path: path || '/socket.io',
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'],      // ✅ only websocket
+    secure: true,
     auth: token ? { token } : undefined,
-    // don't rely on query for auth/registration; we'll emit mechanic_register explicitly
-    autoConnect: true,
   });
 
   socket.on('connect', () => {
-    console.log('[socket] connected', socket.id, optionsUsed);
+    console.log('[socket] ✅ connected:', socket.id);
+    if (mechanicId) registerMechanic(mechanicId);
   });
 
   socket.on('connect_error', (err) => {
-    console.warn('[socket] connect_error', err && (err.message || err));
-  });
-
-  socket.on('reconnect_attempt', (attempt) => {
-    console.log('[socket] reconnect attempt', attempt);
+    console.warn('[socket] ❌ connect_error:', err?.message || err);
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('[socket] disconnected', reason);
+    console.warn('[socket] ⚠️ disconnected:', reason);
   });
 
   return socket;
 }
+
 
 /** registerMechanic - emits mechanic_register and returns promise that resolves with ack */
 export function registerMechanic(mechanicId) {

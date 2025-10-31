@@ -4,7 +4,7 @@ import { initSocket, getSocket, on, off, emit } from '../services/socketClient';
 
 export default function MechanicSocket({ mechanicId }) {
   const [alerts, setAlerts] = useState([]);
-  const serverUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+  const serverUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:7989';
 
   useEffect(() => {
     if (!mechanicId) {
