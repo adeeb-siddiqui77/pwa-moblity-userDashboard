@@ -71,10 +71,13 @@ export default function MechanicRequestsCarousel() {
     if (items.length > 0) {
       setOpen(true);
       tryPlayRinger();
+
+      console.log("items" , items)
     } else {
       setOpen(false);
       stopRinger();
       setActiveIndex(0);
+      console.log("items" , items)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);

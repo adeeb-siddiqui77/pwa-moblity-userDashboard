@@ -5,9 +5,15 @@ import { initSocket, registerMechanic, on, off, emit } from '../services/socketC
 const wrapKey = (jobId, attemptIndex) => `${jobId}:${attemptIndex}`;
 
 export default function MechanicAlertsCenter({ mechanicId, serverUrl }) {
-  const [alerts, setAlerts] = useState([]); // [{key, jobId, attemptIndex, issue, eta, expiresAt, slaSeconds}]
+  const [alerts, setAlerts] = useState([]); // [{key, jobId, attemptIndex, issue, eta, endTs, slaSeconds, remaining, status}]
   const intervalsRef = useRef(new Map());   // key -> intervalId
   const ringerRef = useRef(null);
+  const alertsRef = useRef([]); // keep latest alerts for sync in callbacks
+
+  // keep alertsRef in sync with alerts state
+  useEffect(() => {
+    alertsRef.current = alerts;
+  }, [alerts]);
 
   // Init socket & register mechanic
   useEffect(() => {
@@ -24,31 +30,42 @@ export default function MechanicAlertsCenter({ mechanicId, serverUrl }) {
     socket.on('connect', onConnect);
 
     const handleJobAlert = (payload) => {
-      // payload: { jobId, attemptIndex, issue, eta, expiresAt, slaSeconds }
+      // payload: { jobId, attemptIndex, issue, eta, expiresAt, slaSeconds, serverTime }
       const key = wrapKey(payload.jobId, payload.attemptIndex);
+
+      // compute corrected endTs using serverTime to avoid clock skew
+      const clientNow = Date.now();
+      const serverNow = payload.serverTime ? Date.parse(payload.serverTime) : null;
+      const rawEndTs = payload.expiresAt ? Date.parse(payload.expiresAt) : (clientNow + (payload.slaSeconds || 120) * 1000);
+      const correctedEndTs = serverNow ? (rawEndTs - (clientNow - serverNow)) : rawEndTs;
+
       setAlerts((prev) => {
         if (prev.some(a => a.key === key)) return prev; // dedupe
-        const endTs = payload.expiresAt ? new Date(payload.expiresAt).getTime() : (Date.now() + (payload.slaSeconds || 120) * 1000);
-        return [
-          {
-            ...payload,
-            key,
-            endTs,
-            remaining: Math.max(0, Math.ceil((endTs - Date.now()) / 1000)),
-            status: 'pending'
-          },
-          ...prev
-        ];
+        const newAlert = {
+          ...payload,
+          key,
+          endTs: correctedEndTs,
+          remaining: Math.max(0, Math.ceil((correctedEndTs - Date.now()) / 1000)),
+          status: 'pending'
+        };
+        return [ newAlert, ...prev ];
       });
+
       tryPlayRinger();
-      startTimer(key, payload);
+      startTimer(key, correctedEndTs);
     };
 
     const handleExpired = (p) => {
-      // p: { jobId, attemptIndex }
       const key = wrapKey(p.jobId, p.attemptIndex);
       clearTimer(key);
-      setAlerts(prev => prev.filter(a => a.key !== key));
+      setAlerts(prev => {
+        const next = prev.filter(a => a.key !== key);
+        // stop ringer if none left (use alertsRef after state update via setTimeout)
+        setTimeout(() => {
+          if (!alertsRef.current || alertsRef.current.length === 0) stopRinger();
+        }, 0);
+        return next;
+      });
     };
 
     on('job_alert', handleJobAlert);
@@ -61,18 +78,19 @@ export default function MechanicAlertsCenter({ mechanicId, serverUrl }) {
       // clear all timers
       for (const id of intervalsRef.current.values()) clearInterval(id);
       intervalsRef.current.clear();
+      stopRinger();
     };
   }, [mechanicId, serverUrl]);
 
   // Timer per alert
-  const startTimer = (key, payload) => {
+  const startTimer = (key, endTs) => {
     clearTimer(key);
-    const endTs = payload.expiresAt ? new Date(payload.expiresAt).getTime() : (Date.now() + (payload.slaSeconds || 120) * 1000);
     const id = setInterval(() => {
       setAlerts(prev => {
         const next = prev.map(a => {
           if (a.key !== key) return a;
-          const remaining = Math.max(0, Math.ceil((endTs - Date.now()) / 1000));
+          const remaining = Math.max(0, Math.ceil((a.endTs - Date.now()) / 1000));
+          // if expired, we can optionally clear timer and remove; but let server emit expired
           return { ...a, remaining };
         });
         return next;
@@ -90,20 +108,17 @@ export default function MechanicAlertsCenter({ mechanicId, serverUrl }) {
   // Ringer helpers
   const tryPlayRinger = () => {
     if (!ringerRef.current) {
-      ringerRef.current = new Audio('/ringtones/alert.mp3'); // put a file here or change path
+      ringerRef.current = new Audio('/ringtones/alert.mp3'); // change path if needed
       ringerRef.current.loop = true;
       ringerRef.current.volume = 0.7;
     }
-    ringerRef.current.play().catch(() => {
-      // likely blocked until user interacts — that’s OK
-    });
+    // Browser may block autoplay; ignore rejection
+    ringerRef.current.play().catch(() => {});
   };
-  const stopRingerIfNoAlerts = () => {
-    setTimeout(() => {
-      if (alerts.length === 0 && ringerRef.current) {
-        try { ringerRef.current.pause(); ringerRef.current.currentTime = 0; } catch {}
-      }
-    }, 10);
+  const stopRinger = () => {
+    if (ringerRef.current) {
+      try { ringerRef.current.pause(); ringerRef.current.currentTime = 0; } catch {}
+    }
   };
 
   // Accept/Reject handlers
@@ -112,11 +127,16 @@ export default function MechanicAlertsCenter({ mechanicId, serverUrl }) {
       console.log('[alerts] job_response ack:', ack);
       // always clear timer and remove card (server will move to next if needed)
       clearTimer(a.key);
-      setAlerts(prev => prev.filter(x => x.key !== a.key));
-      stopRingerIfNoAlerts();
+      setAlerts(prev => {
+        const next = prev.filter(x => x.key !== a.key);
+        // stop ringer if no alerts left
+        setTimeout(() => {
+          if (!alertsRef.current || alertsRef.current.length === 0) stopRinger();
+        }, 0);
+        return next;
+      });
       if (!ack?.ok) {
-        // optionally show a toast
-        // alert(`Server: ${ack?.message || 'Response not accepted'}`);
+        // optionally show a toast or alert here
       }
     });
   };
