@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import { useRequests } from '../store/RequestsProvider';
+import toast from "react-hot-toast";
 
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -60,7 +61,7 @@ const navBtn = {
 const pagerText = { fontWeight: 700, color: '#1F2937' };
 
 export default function MechanicRequestsCarousel() {
-  const { items, accept, reject, format } = useRequests();
+  const { items, accept, reject, format , removeItem} = useRequests();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const swiperRef = useRef(null);
@@ -72,12 +73,12 @@ export default function MechanicRequestsCarousel() {
       setOpen(true);
       tryPlayRinger();
 
-      console.log("items" , items)
+      console.log("items", items)
     } else {
       setOpen(false);
       stopRinger();
       setActiveIndex(0);
-      console.log("items" , items)
+      console.log("items", items)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
@@ -88,12 +89,12 @@ export default function MechanicRequestsCarousel() {
       ringerRef.current.loop = true;
       ringerRef.current.volume = 0.7;
     }
-    ringerRef.current.play().catch(() => {});
+    ringerRef.current.play().catch(() => { });
   };
 
   const stopRinger = () => {
     if (!ringerRef.current) return;
-    try { ringerRef.current.pause(); ringerRef.current.currentTime = 0; } catch {}
+    try { ringerRef.current.pause(); ringerRef.current.currentTime = 0; } catch { }
   };
 
   const autoNextAfterRemove = () => {
@@ -130,8 +131,29 @@ export default function MechanicRequestsCarousel() {
               <RequestCard
                 data={a}
                 format={format}
-                onAccept={() => accept(a, autoNextAfterRemove)}
-                onReject={() => reject(a, autoNextAfterRemove)}
+
+                onAccept={() =>
+                  accept(a, (ack) => {
+                    autoNextAfterRemove();
+                    if (ack?.ok) {
+                      toast.success("Request accepted successfully");
+                    } else {
+                      toast.error(ack?.message || "Failed to accept request");
+                    }
+                  })
+                }
+                onReject={() =>
+                  reject(a, (ack) => {
+                    autoNextAfterRemove();
+                    if (ack?.ok) {
+                      toast.success("Request rejected");
+                    } else {
+                      toast.error(ack?.message || "Failed to reject request");
+                    }
+                  })
+                }
+
+
               />
             </SwiperSlide>
           ))}
@@ -191,7 +213,7 @@ const etaLabel = { color: '#B22222', fontWeight: 700, marginRight: 6 };
 const etaText = { fontWeight: 600 };
 const infoRow = { margin: '6px 0', fontSize: 14, color: '#111827' };
 const infoMuted = { color: '#6B7280' };
-const ctaRow = { display: 'flex', gap: 10, marginTop: 14 , alignItems : 'center' };
+const ctaRow = { display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' };
 const btn = {
   flex: 1,
   border: 'none',
@@ -206,13 +228,58 @@ const btnReject = { ...btn, background: '#A10F0F', color: '#fff' };
 const btnAccept = { ...btn, background: '#268F00', color: '#fff' };
 const btnDisabled = { opacity: 0.6, cursor: 'not-allowed', boxShadow: 'none' };
 
+
+function Spinner({ size = 18 }) {
+  const style = {
+    width: size,
+    height: size,
+    borderRadius: '50%',
+    border: '2px solid rgba(255,255,255,0.4)',
+    borderTopColor: '#fff',
+    animation: 'spin 0.7s linear infinite',
+  };
+  return <div style={style} />;
+}
+
+// Add global keyframe on first load
+if (typeof document !== 'undefined' && !document.getElementById('carousel-spinner-style')) {
+  const style = document.createElement('style');
+  style.id = 'carousel-spinner-style';
+  style.innerHTML = `
+    @keyframes spin { to { transform: rotate(360deg); } }
+  `;
+  document.head.appendChild(style);
+}
+
+
 function RequestCard({ data, format, onAccept, onReject }) {
-  const disabled = Number(data.remaining || 0) <= 0;
+  const [processing, setProcessing] = useState(false);
+  const disabled = processing || Number(data.remaining || 0) <= 0;
+
+  const handleAccept = () => {
+    if (disabled) return;
+    setProcessing(true);
+
+    // pass a wrapped callback to restore UI if needed
+    onAccept({
+      onFail: () => setProcessing(false),
+    });
+  };
+
+  const handleReject = () => {
+    if (disabled) return;
+    setProcessing(true);
+
+    onReject({
+      onFail: () => setProcessing(false),
+    });
+  };
 
   return (
     <div style={cardWrap}>
       <div style={cardHeader}>
         <div style={cardTitle}>{data.issue || 'Request'}</div>
+
         <div style={timerPill}>
           <span aria-hidden>⏱</span>
           {format(data.remaining)}
@@ -224,40 +291,54 @@ function RequestCard({ data, format, onAccept, onReject }) {
         <span style={etaText}>{data.eta || '—'}</span>
       </div>
 
-      {data.customerName ? (
+      {data.customerName && (
         <div style={infoRow}><strong>{data.customerName}</strong></div>
-      ) : null}
+      )}
 
-      {data.customerPhone ? (
+      {data.customerPhone && (
         <div style={infoRow}>
           <span style={infoMuted}>Mobile No. :</span>
           <strong style={{ marginLeft: 6 }}>{data.customerPhone}</strong>
         </div>
-      ) : null}
+      )}
 
-      {data.vehicleType ? (
+      {data.vehicleType && (
         <div style={infoRow}>
           <span style={infoMuted}>Vehicle Type :</span>
           <strong style={{ marginLeft: 6 }}>{data.vehicleType}</strong>
         </div>
-      ) : null}
+      )}
 
+      {/* CTA Buttons */}
       <div style={ctaRow}>
+
+        {/* Reject Button */}
         <button
-          onClick={onReject}
+          onClick={handleReject}
           disabled={disabled}
           style={disabled ? { ...btnReject, ...btnDisabled } : btnReject}
         >
-          <CloseIcon/>
+          {processing ? (
+            <Spinner size={14} />
+          ) : (
+            <CloseIcon />
+          )}
         </button>
+
+        {/* Accept Button */}
         <button
-          onClick={onAccept}
+          onClick={handleAccept}
           disabled={disabled}
           style={disabled ? { ...btnAccept, ...btnDisabled } : btnAccept}
         >
-          <DoneIcon/>
+          {processing ? (
+            <Spinner size={14} />
+          ) : (
+            <DoneIcon />
+          )}
         </button>
       </div>
     </div>
   );
 }
+

@@ -3,79 +3,89 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { initSocket, registerMechanic, on, off, emit } from '../services/socketClient';
 
 const RequestsContext = createContext(null);
-const keyOf = (jobId, attemptIndex) => `${jobId}:${attemptIndex}`;
 const STORAGE_KEY = 'mechanic_requests_v1';
+const keyOf = (jobId, attemptIndex) => `${jobId}:${attemptIndex}`;
 
 export function RequestsProvider({ mechanicId, serverUrl, children }) {
-  const [items, setItems] = useState([]); // [{key, jobId, attemptIndex, issue, eta, endTs, remaining, status, ...}]
+  const [items, setItems] = useState([]);
   const socketReadyRef = useRef(false);
   const tickRef = useRef(null);
 
-  // load from localStorage on mount (drop expired)
+  // ---------------- LOAD FROM STORAGE ----------------
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const now = Date.now();
-        const restored = (parsed || [])
-          .map(it => ({
-            ...it,
-            remaining: Math.max(0, Math.ceil((it.endTs - now) / 1000))
-          }))
-          .filter(it => it.status === 'pending' ? it.endTs > now : true); // drop pending that are already past
-        setItems(restored);
-      }
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      const now = Date.now();
+      const restored = parsed
+        .map(it => ({
+          ...it,
+          remaining: Math.max(0, Math.ceil((it.endTs - now) / 1000))
+        }))
+        .filter(it =>
+          it.status === 'pending'
+            ? it.endTs > now
+            : true
+        );
+
+      setItems(restored);
     } catch {}
   }, []);
 
-  // persist to localStorage on change
+  // ---------------- SAVE TO STORAGE ----------------
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch {}
   }, [items]);
 
-  // init socket + register + listeners (once)
+  // ---------------- SOCKET INITIALIZATION ----------------
   useEffect(() => {
     if (!mechanicId || socketReadyRef.current) return;
+
     const socket = initSocket(serverUrl, { mechanicId });
 
-    const onConnect = () => {
+    socket.on('connect', () => {
       registerMechanic(mechanicId).then(() => {
         socketReadyRef.current = true;
       });
-    };
-    socket.on('connect', onConnect);
+    });
 
     const handleJobAlert = (p) => {
-      const k = keyOf(p.jobId, p.attemptIndex);
+      const key = keyOf(p.jobId, p.attemptIndex);
+
+      // Compute expiry
       const endTs = p.expiresAt
         ? new Date(p.expiresAt).getTime()
         : Date.now() + (p.slaSeconds || 120) * 1000;
 
       setItems(prev => {
-        if (prev.some(x => x.key === k)) return prev; // dedupe
-        const item = {
-          key: k,
-          jobId: p.jobId,
-          attemptIndex: p.attemptIndex,
-          issue: p.issue || p.ticketSummary || 'New Request',
-          eta: p.eta || '—',
-          customerName: p.customerName || '',
-          customerPhone: p.customerPhone || '',
-          vehicleType: p.vehicleType || '',
-          endTs,
-          remaining: Math.max(0, Math.ceil((endTs - Date.now()) / 1000)),
-          status: 'pending'
-        };
-        return [item, ...prev];
+        if (prev.some(x => x.key === key)) return prev;
+
+        return [
+          {
+            key,
+            jobId: p.jobId,
+            attemptIndex: p.attemptIndex,
+            issue: p.issue || p.ticketSummary || 'New Request',
+            eta: p.eta || '—',
+            customerName: p.customerName || '',
+            customerPhone: p.customerPhone || '',
+            vehicleType: p.vehicleType || '',
+            endTs,
+            remaining: Math.max(0, Math.ceil((endTs - Date.now()) / 1000)),
+            status: 'pending'
+          },
+          ...prev
+        ];
       });
     };
 
     const handleExpired = (p) => {
-      const k = keyOf(p.jobId, p.attemptIndex);
-      setItems(prev => prev.filter(it => it.key !== k)); // remove expired from list
+      const key = keyOf(p.jobId, p.attemptIndex);
+      setItems(prev => prev.filter(it => it.key !== key));
     };
 
     on('job_alert', handleJobAlert);
@@ -84,13 +94,12 @@ export function RequestsProvider({ mechanicId, serverUrl, children }) {
     return () => {
       off('job_alert', handleJobAlert);
       off('job_alert_expired', handleExpired);
-      socket.off('connect', onConnect);
+      socket.off('connect');
     };
   }, [mechanicId, serverUrl]);
 
-  // global 1s tick to update remaining & auto-expire locally (in case missed server event)
+  // ---------------- GLOBAL TIMER (every 1s) ----------------
   useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
     tickRef.current = setInterval(() => {
       const now = Date.now();
       setItems(prev => {
@@ -100,11 +109,14 @@ export function RequestsProvider({ mechanicId, serverUrl, children }) {
             next.push(it);
             continue;
           }
+
           const remaining = Math.max(0, Math.ceil((it.endTs - now) / 1000));
+
           if (remaining <= 0) {
-            // auto-remove when expired
+            // auto-remove
             continue;
           }
+
           next.push({ ...it, remaining });
         }
         return next;
@@ -114,35 +126,51 @@ export function RequestsProvider({ mechanicId, serverUrl, children }) {
     return () => clearInterval(tickRef.current);
   }, []);
 
-  // actions
-  const accept = (item, cb) => {
-    emit('job_response', { jobId: item.jobId, attemptIndex: item.attemptIndex, response: 'accept' }, (ack) => {
-      // remove on any ack; server is source of truth
-      setItems(prev => prev.filter(x => x.key !== item.key));
-      if (cb) cb(ack);
-    });
-  };
-  const reject = (item, cb) => {
-    emit('job_response', { jobId: item.jobId, attemptIndex: item.attemptIndex, response: 'reject' }, (ack) => {
-      // remove on any ack; server will advance to next
-      setItems(prev => prev.filter(x => x.key !== item.key));
-      if (cb) cb(ack);
-    });
-  };
+  // ---------------- NEW ACCEPT / REJECT LOGIC ----------------
+  
 
-  const value = {
-    items,                 // array of current visible requests (pending until accept/reject/expire)
-    accept,
-    reject,
-    format: (s) => {
-      const mm = String(Math.floor(s / 60)).padStart(2, '0');
-      const ss = String(s % 60).padStart(2, '0');
-      return `${mm}:${ss}`;
+  const accept = (item, cb) => {
+  emit(
+    "job_response",
+    { jobId: item.jobId, attemptIndex: item.attemptIndex, response: "accept" },
+    (ack) => {
+      // Remove immediately from UI
+      setItems((prev) => prev.filter((x) => x.key !== item.key));
+
+      if (cb) cb(ack); // pass ack up to UI
     }
+  );
+};
+
+const reject = (item, cb) => {
+  emit(
+    "job_response",
+    { jobId: item.jobId, attemptIndex: item.attemptIndex, response: "reject" },
+    (ack) => {
+      setItems((prev) => prev.filter((x) => x.key !== item.key));
+
+      if (cb) cb(ack);
+    }
+  );
+};
+
+
+  // ---------------- TIME FORMATTER ----------------
+  const formatRemaining = (s) => {
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
   };
 
   return (
-    <RequestsContext.Provider value={value}>
+    <RequestsContext.Provider
+      value={{
+        items,
+        accept,
+        reject,
+        format: formatRemaining
+      }}
+    >
       {children}
     </RequestsContext.Provider>
   );
@@ -150,6 +178,6 @@ export function RequestsProvider({ mechanicId, serverUrl, children }) {
 
 export function useRequests() {
   const ctx = useContext(RequestsContext);
-  if (!ctx) throw new Error('useRequests must be used within RequestsProvider');
+  if (!ctx) throw new Error('useRequests must be used inside RequestsProvider');
   return ctx;
 }
