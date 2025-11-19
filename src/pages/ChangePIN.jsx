@@ -10,6 +10,8 @@ export default function ChangePIN() {
   const [confirmPin, setConfirmPin] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+
   const validatePin = (pin) => {
     // PIN should be 4-6 digits
     const pinRegex = /^\d{4,6}$/
@@ -41,7 +43,7 @@ export default function ChangePIN() {
       }
       
       // Option 1: Using fetch with manual token handling
-      const response = await fetch('https://pwa-connect-api.jktyre.co.in/api/auth/user/change-pin', {
+      const response = await fetch(`${API_BASE || ''}/api/auth/user/change-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

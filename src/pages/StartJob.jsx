@@ -35,9 +35,13 @@ export default function StartJob(){
   const [otpVerifyError, setOtpVerifyError] = useState("")
   const [otpSendLoading, setOtpSendLoading] = useState(false)
   const [otpVerifyLoading, setOtpVerifyLoading] = useState(false)
+
+
+  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
   
   // Update Zoho ticket (local backend) when proceeding to OTP
   const submitZohoTicketUpdate = async () => {
+    
     try {
       // Build arrays of strings (filenames or empty)
       const prePhotos = [
@@ -71,7 +75,7 @@ export default function StartJob(){
         return
       }
 
-      const endpoint = `https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/update/${zohoId}`
+      const endpoint = `${API_BASE}/api/zoho/tickets/update/${zohoId}`
       console.log('Calling Zoho Update →', endpoint, payload)
       await fetch(endpoint, {
         method: 'PATCH',
@@ -103,7 +107,7 @@ export default function StartJob(){
         return
       }
 
-      const endpoint = `https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/${zohoId}`
+      const endpoint = `${API_BASE}/api/zoho/tickets/${zohoId}`
       console.log('Calling Zoho Verify Completed →', endpoint, payload)
       await fetch(endpoint, {
         method: 'PATCH',
@@ -298,7 +302,7 @@ export default function StartJob(){
       setRateError("")
       setRateCostData(null)
 
-      const endpoint = 'https://pwa-connect-api.jktyre.co.in/api/rate-card/get-services-cost'
+      const endpoint = `${API_BASE}/api/rate-card/get-services-cost`
       // Build payload exactly as requested
       const payloadForCost = preparePayload()
       const res = await fetch(endpoint, {
@@ -398,7 +402,7 @@ export default function StartJob(){
         return false
       }
     
-      const base = 'https://pwa-connect-api.jktyre.co.in'
+      const base = `${API_BASE}`
       const url = `${base}/api/driver/verify-otp-mechanic?phoneNo=${phone}&otp=${otpCode}`
       const res = await fetch(url, { method: 'GET' })
       console.log('OTP verification response status:', res.status)
@@ -523,7 +527,7 @@ export default function StartJob(){
         }
 
         // Call the API to get all tickets
-        const response = await fetch(`https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/mechanic/${userId}`)
+        const response = await fetch(`${API_BASE}/api/zoho/tickets/mechanic/${userId}`)
         
         if (!response.ok) {
           const text = await response.text()

@@ -9,6 +9,8 @@ export default function Jobs(){
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
 
+  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+
   useEffect(() => {
     const fetchTickets = async () => {
       try {
@@ -28,7 +30,7 @@ export default function Jobs(){
         }
 
         // Call the API with dynamic user ID
-        const response = await fetch(`https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/mechanic/${userId}`)
+        const response = await fetch(`${API_BASE}/api/zoho/tickets/mechanic/${userId}`)
         
         if (!response.ok) {
           const text = await response.text()

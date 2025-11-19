@@ -9,6 +9,8 @@ export default function Profile(){
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+
   // Fetch user profile data
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,7 +25,7 @@ export default function Profile(){
           throw new Error('No access token found. Please login again.')
         }
         
-        const response = await fetch('https://pwa-connect-api.jktyre.co.in/api/auth/user/profile', {
+        const response = await fetch(`${API_BASE}/api/auth/user/profile`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -149,7 +151,7 @@ export default function Profile(){
                 />
               ) : profileData.kycImage ? (
                 <img 
-                  src={`https://pwa-connect-api.jktyre.co.in/${profileData.kycImage}`} 
+                  src={`${API_BASE}/${profileData.kycImage}`} 
                   alt='Profile' 
                   style={{width: '100%', height: '100%', objectFit: 'cover'}}
                 />
@@ -210,7 +212,7 @@ export default function Profile(){
               <div className='text-field'>Aadhar Card</div>
               <button 
                 style={{background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer'}}
-                onClick={() => window.open(`https://pwa-connect-api.jktyre.co.in/${profileData.adharCard}`, '_blank')}
+                onClick={() => window.open(`${API_BASE}/${profileData.adharCard}`, '_blank')}
               >
                 <span style={{fontSize: '18px'}}>⬇️</span>
               </button>
@@ -222,7 +224,7 @@ export default function Profile(){
               <div className='text-field'>LOI Form</div>
               <button 
                 style={{background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer'}}
-                onClick={() => window.open(`https://pwa-connect-api.jktyre.co.in/${profileData.loiForm}`, '_blank')}
+                onClick={() => window.open(`${API_BASE}/${profileData.loiForm}`, '_blank')}
               >
                 <span style={{fontSize: '18px'}}>⬇️</span>
               </button>
@@ -234,7 +236,7 @@ export default function Profile(){
               <div className='text-field'>QR Code</div>
               <button 
                 style={{background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer'}}
-                onClick={() => window.open(`https://pwa-connect-api.jktyre.co.in/${profileData.qrCode}`, '_blank')}
+                onClick={() => window.open(`${API_BASE}/${profileData.qrCode}`, '_blank')}
               >
                 <span style={{fontSize: '18px'}}>⬇️</span>
               </button>

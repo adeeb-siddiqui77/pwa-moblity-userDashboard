@@ -16,6 +16,8 @@ export default function Home() {
 
   const user = JSON.parse(localStorage.getItem('user'));
 
+  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+
   useEffect(() => {
     const stored = localStorage.getItem("user");
     let userId = "";
@@ -29,7 +31,7 @@ export default function Home() {
     }
     const fetchTickets = async () => {
       try {
-        const res = await fetch(`https://pwa-connect-api.jktyre.co.in/api/zoho/tickets/mechanic/${userId}`);
+        const res = await fetch(`${API_BASE}/api/zoho/tickets/mechanic/${userId}`);
         if (!res.ok) {
           const text = await res.text();
           throw new Error(text || `HTTP ${res.status}`);
