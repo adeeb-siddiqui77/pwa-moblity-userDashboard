@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 
-const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+const API_BASE = (import.meta.env.VITE_API_BASE) || ''
 
 export default function StartJob(){
   const { id } = useParams()
@@ -37,7 +37,7 @@ export default function StartJob(){
   const [otpVerifyLoading, setOtpVerifyLoading] = useState(false)
 
 
-  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+  const API_BASE = (import.meta.env.VITE_API_BASE) || ''
   
   // Update Zoho ticket (local backend) when proceeding to OTP
   const submitZohoTicketUpdate = async () => {

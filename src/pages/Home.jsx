@@ -16,7 +16,8 @@ export default function Home() {
 
   const user = JSON.parse(localStorage.getItem('user'));
 
-  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+  const API_BASE = (import.meta.env.VITE_API_BASE) || ''
+
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -50,7 +51,7 @@ export default function Home() {
           paymentStatus: ticket.paymentStatus || (ticket.status === 'Completed' ? 'paid' : 'pending')
         }));
 
-        console.log('Sample transformed ticket from Home:', transformedTickets[0])
+        // console.log('Sample transformed ticket from Home:', transformedTickets[0])
 
         setTickets(transformedTickets);
         setFilteredTickets(transformedTickets);

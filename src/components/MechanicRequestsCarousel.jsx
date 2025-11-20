@@ -61,7 +61,7 @@ const navBtn = {
 const pagerText = { fontWeight: 700, color: '#1F2937' };
 
 export default function MechanicRequestsCarousel() {
-  const { items, accept, reject, format , removeItem} = useRequests();
+  const { items, accept, reject, format, removeItem } = useRequests();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const swiperRef = useRef(null);

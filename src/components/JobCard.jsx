@@ -6,33 +6,33 @@ export default function JobCard({ job, showPriority = false, showCategory = fals
   const nav = useNavigate()
   
   // Debug: Log job data to see what we're getting
-  console.log('JobCard job data:', job)
-  console.log('Job issue:', job.issue)
-  console.log('Job paymentStatus:', job.paymentStatus)
-  console.log('Job createdAt:', job.createdAt)
-  console.log('Job originalTicket createdAt:', job.originalTicket?.createdAt)
+  // console.log('JobCard job data:', job)
+  // console.log('Job issue:', job.issue)
+  // console.log('Job paymentStatus:', job.paymentStatus)
+  // console.log('Job createdAt:', job.createdAt)
+  // console.log('Job originalTicket createdAt:', job.originalTicket?.createdAt)
   
   // Format time based on date
   const formatTime = (createdAt) => {
-    console.log('formatTime called with:', createdAt, 'type:', typeof createdAt)
+    // console.log('formatTime called with:', createdAt, 'type:', typeof createdAt)
     
     if (!createdAt) {
-      console.log('No createdAt provided')
+      // console.log('No createdAt provided')
       return 'N/A'
     }
     
     // If it's already a formatted time string, return it as is
     if (typeof createdAt === 'string' && !createdAt.includes('T') && !createdAt.includes('-')) {
-      console.log('Returning formatted time string:', createdAt)
+      // console.log('Returning formatted time string:', createdAt)
       return createdAt
     }
     
     const ticketDate = new Date(createdAt)
-    console.log('Parsed date:', ticketDate)
+    // console.log('Parsed date:', ticketDate)
     
     // Check if the date is valid
     if (isNaN(ticketDate.getTime())) {
-      console.log('Invalid date:', createdAt)
+      // console.log('Invalid date:', createdAt)
       return 'N/A'
     }
     

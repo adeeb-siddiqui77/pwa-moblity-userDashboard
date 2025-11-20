@@ -10,7 +10,7 @@ export default function ChangePIN() {
   const [confirmPin, setConfirmPin] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const API_BASE = (import.meta?.env?.VITE_API_BASE) || ''
+  const API_BASE = (import.meta.env.VITE_API_BASE) || ''
 
   const validatePin = (pin) => {
     // PIN should be 4-6 digits
