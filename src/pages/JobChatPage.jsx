@@ -29,9 +29,8 @@ const BOT_FLOW = [
       'Tyre Burst', 'Tyre Puncture', 'Rim Break/ Damage', 'Air Bulge', 'Tyre Runflat', 'Cuts/ Cracks/ Damage in Sidewalls', 'Belt/ Tread Separation'
     ]
   },
-  {
-    id: 'approach', type: 'checkbox', title: 'Approach'
-  },
+  { id: 'issue_image', type: 'capture_image', title: 'Capture Pre Repaired Photo' },
+  { id: 'rate_card', type: 'rate_card', title: 'Here’s the rate card for the services you provided:' },
   { id: 'finish', type: 'end', title: 'I’ve noted the issues. You can begin the repair.' }
 ];
 
@@ -75,14 +74,31 @@ export default function JobChatPage({ mechanicIdProp }) {
   // for sending issue mapping messages from bot 
 
   const [pendingMessage, setPendingMessage] = useState(null)
-  const [botFinalMessageSent , serBotFinalMessageSent] = useState(false)
+  const [botFinalMessageSent, serBotFinalMessageSent] = useState(false)
+
+
+
 
   function toLabel(str) {
     return str
       .replace(/([A-Z])/g, ' $1')   // insert space before capital letters
       .replace(/^./, s => s.toUpperCase()); // capitalize first letter
   }
-  
+
+
+  useEffect(() => {
+    if (
+      finalServiceOptions.length > 0  // flow completed
+    ) {
+      postMessage({
+        who: "bot",
+        text: "I’ve noted the issues. You can begin the repair.",
+        meta: { step: "finalMapping" }
+      });
+    }
+  }, [finalServiceOptions]);
+
+
 
   useEffect(() => {
     if (!pendingMessage) return;
@@ -95,7 +111,7 @@ export default function JobChatPage({ mechanicIdProp }) {
           text: `${toLabel(pendingMessage.step)} : ${pendingMessage.value}`,
           meta: { type: "mappingStep" }
         });
-        
+
       } catch (error) {
         console.log("Error posting message : ", err)
       } finally {
@@ -416,7 +432,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                 </div>
               )}
 
-              {currentFlow.type === "checkbox" && idx === lastBotIndex && (
+              {currentFlow.type === "checkbox" && idx === lastBotIndex && messages[messages.length - 1].meta?.step != "finalMapping" && (
 
                 currentFlow.options ? (<div className="mt-3 space-y-2">
                   {currentFlow.options.map(opt => (
@@ -441,6 +457,42 @@ export default function JobChatPage({ mechanicIdProp }) {
                     <button className="w-full bg-[#FB8C00] text-white rounded-md py-2 mt-3" onClick={submitApproach} disabled={submitting}>Submit</button>
                   </div>)
               )}
+
+
+              {
+                currentFlow.type === "rate_card" && idx === lastBotIndex && (
+                  <div className="w-full max-w-xs bg-gray-100 rounded-lg px-4 py-3 text-sm shadow-sm border">
+                    {/* Header */}
+                    <div className="flex justify-between font-semibold text-gray-700 mb-2">
+                      <span>Services</span>
+                      <span>Prices</span>
+                    </div>
+
+                    <div className="border-t border-gray-300"></div>
+
+                    {/* Service Row 1 */}
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-700">Puncture Repair</span>
+                      <span className="font-medium text-gray-900">₹250</span>
+                    </div>
+
+                    {/* Service Row 2 */}
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-700">Air Pressure Check</span>
+                      <span className="font-medium text-gray-500">Complimentary</span>
+                    </div>
+
+                    <div className="border-t border-gray-300 mt-1"></div>
+
+                    {/* Total */}
+                    <div className="flex justify-between py-2 font-semibold text-gray-900">
+                      <span>Total</span>
+                      <span>₹250</span>
+                    </div>
+                  </div>
+
+                )
+              }
 
 
             </div>
@@ -646,13 +698,17 @@ export default function JobChatPage({ mechanicIdProp }) {
     };
     console.log("Final Object for Pricing/Records:", finalObject);
 
-    if (finalServiceOptions.length > 0) {
-      return (
-        <div className="p-4 bg-white rounded-md border shadow-sm mt-3">
-          <p className="text-gray-700 font-medium">Thanks for the details!</p>
-        </div>
-      );
-    }
+
+
+    // if (finalServiceOptions.length > 0) {
+
+
+    //   return (
+    //     <div className="p-4 bg-white rounded-md border shadow-sm mt-3">
+    //       <p className="text-gray-700 font-medium">Thanks for the details!</p>
+    //     </div>
+    //   );
+    // }
 
     return null;
   }
