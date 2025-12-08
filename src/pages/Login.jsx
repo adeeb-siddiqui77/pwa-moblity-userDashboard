@@ -12,6 +12,19 @@ export default function Login(){
     return mobileRegex.test(mobile)
   }
 
+
+  const unlockAudio = () => {
+    const audio = new Audio('/ringtones/alert.mp3');
+  
+    audio.play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        console.log("Audio unlocked");
+      })
+      .catch(() => {});
+  };
+
   const onPinLogin = async () => {
     if (!mobile) return toast.error('Please enter mobile number')
     if (!validateMobile(mobile)) return toast.error('Please enter a valid 10-digit mobile number')
@@ -31,6 +44,8 @@ export default function Login(){
       localStorage.setItem('user', JSON.stringify(user))
 
       toast.success('Login successful')
+      unlockAudio()
+      
       // Notify app & redirect
       window.dispatchEvent(new Event('auth-updated'))
       window.location.replace('/')

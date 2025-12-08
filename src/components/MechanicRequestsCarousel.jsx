@@ -292,7 +292,7 @@ function RequestCard({ data, format, onAccept, onReject }) {
       </div>
 
       {data.customerName && (
-        <div style={infoRow}><strong>{data.customerName}</strong></div>
+        <div style={infoRow}><span style={infoMuted}>Vehicle Number :</span> <strong>{data.customerName}</strong></div>
       )}
 
       {data.customerPhone && (
