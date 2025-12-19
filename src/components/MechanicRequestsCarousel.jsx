@@ -131,7 +131,7 @@ export default function MechanicRequestsCarousel() {
               <RequestCard
                 data={a}
                 format={format}
-
+                stopRinger = {stopRinger}
                 onAccept={() =>
                   accept(a, (ack) => {
                     autoNextAfterRemove();
@@ -252,13 +252,14 @@ if (typeof document !== 'undefined' && !document.getElementById('carousel-spinne
 }
 
 
-function RequestCard({ data, format, onAccept, onReject }) {
+function RequestCard({ data, format, onAccept, onReject , stopRinger  }) {
   const [processing, setProcessing] = useState(false);
   const disabled = processing || Number(data.remaining || 0) <= 0;
 
   const handleAccept = () => {
     if (disabled) return;
     setProcessing(true);
+    stopRinger();
 
     // pass a wrapped callback to restore UI if needed
     onAccept({
@@ -268,6 +269,7 @@ function RequestCard({ data, format, onAccept, onReject }) {
 
   const handleReject = () => {
     if (disabled) return;
+    stopRinger();
     setProcessing(true);
 
     onReject({
@@ -288,7 +290,7 @@ function RequestCard({ data, format, onAccept, onReject }) {
 
       <div style={etaRow}>
         <span style={etaLabel}>ETA :</span>
-        <span style={etaText}>{data.eta || '—'}</span>
+        <span style={etaText}>{data.eta || '—'} min</span>
       </div>
 
       {data.customerName && (
