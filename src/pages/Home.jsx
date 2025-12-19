@@ -122,7 +122,9 @@ export default function Home() {
 
       {!showRequests && (
         <>
-          <div className='row' style={{ gap: 8, marginBottom: 16 }}>
+
+          {/* Filter Buttons */}
+          {/* <div className='row' style={{ gap: 8, marginBottom: 16 }}>
             <button
               className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
               onClick={() => handleFilterChange('all')}
@@ -144,7 +146,7 @@ export default function Home() {
             >
               Completed ({tickets.filter(t => t.status && t.status.toLowerCase() === 'completed').length})
             </button>
-          </div>
+          </div> */}
 
           <div className='list'>
             {loading && <div className='caption-text'>Loading...</div>}

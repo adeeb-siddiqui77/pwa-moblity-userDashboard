@@ -71,7 +71,7 @@ export function RequestsProvider({ mechanicId, serverUrl, children }) {
             attemptIndex: p.attemptIndex,
             issue: p.issue || p.ticketSummary || 'New Request',
             eta: p.eta || '—',
-            customerName: p.customerName || '',
+            customerName: p.vehicleNumber || '',
             customerPhone: p.customerPhone || '',
             vehicleType: p.vehicleType || '',
             endTs,

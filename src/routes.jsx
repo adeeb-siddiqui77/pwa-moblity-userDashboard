@@ -14,6 +14,7 @@ import SupportTickets from './pages/SupportTickets'
 import Training from './pages/Training'
 import StartJob from './pages/StartJob'
 import TicketDetails from './pages/TicketDetails'
+import JobChatPage from './pages/JobChatPage'
 
 export default function AppRoutes({ authed }){
   return (
@@ -38,6 +39,7 @@ export default function AppRoutes({ authed }){
           <Route path='/support' element={<SupportTickets/>} />
           <Route path='/training' element={<Training/>} />
           <Route path='*' element={<Navigate to='/' replace />} />
+          <Route path="/job-chat/:ticketId" element={<JobChatPage />} />
         </>
       )}
     </Routes>
