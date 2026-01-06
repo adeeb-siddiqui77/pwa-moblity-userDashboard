@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 const STORAGE_KEY = (ticketId, mechId) => `jobchat:${ticketId}:${mechId}`;
@@ -10,25 +11,13 @@ import { ImCross } from "react-icons/im";
 import MultiStepMessage from '../components/MultiStepMessage';
 import MultiStepUI from '../components/MultiStepUI';
 
-const BOT_FLOW = [
-  { id: 'greeting', type: 'info' },
-  { id: 'vehicle_plate', type: 'capture_image', title: 'Please upload a photo of the vehicle’s number plate to verify the record.' },
-  { id: 'stencil', type: 'capture_image', title: 'Upload the tyre’s stencil number.' },
-  { id: 'issue_image', type: 'capture_image', title: 'Capture Tyre Issue Image' },
-  {
-    id: 'issues', type: 'checkbox', title: 'Before you get started, just pick the issues from the list below.', options: [
-      'Tyre Burst', 'Tyre Puncture', 'Rim Break/ Damage', 'Air Bulge', 'Tyre Runflat', 'Cuts/ Cracks/ Damage in Sidewalls', 'Belt/ Tread Separation'
-    ]
-  },
-  { id: 'issue_image', type: 'capture_image', title: 'Capture Repaired Photo' },
-  { id: 'rate_card', type: 'rate_card', title: 'Here’s the rate card for the services you provided:' },
-  //   { id: 'finish', type: 'end', title: 'I’ve noted the issues. You can begin the repair.' }
-];
+// BOT_FLOW will be created dynamically with translations
 
 const BOT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKFjKVKIji1Xzqr6zWY4yQJvLiFUULD9O_LA&s'
 const MECH_AVATAR = 'https://png.pngtree.com/png-clipart/20230927/original/pngtree-man-avatar-image-for-profile-png-image_13001877.png'
 
 export default function JobChatPage({ mechanicIdProp }) {
+  const { t } = useTranslation();
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +25,27 @@ export default function JobChatPage({ mechanicIdProp }) {
   const driverName = context.driverName || '';
   const driverPhone = context.driverPhone || '';
   const mechanicId = mechanicIdProp || (JSON.parse(localStorage.getItem('user'))?.id);
+
+  // Create BOT_FLOW with translations
+  const BOT_FLOW = [
+    { id: 'greeting', type: 'info' },
+    { id: 'vehicle_plate', type: 'capture_image', title: t('chatbot.uploadNumberPlate') },
+    { id: 'stencil', type: 'capture_image', title: t('chatbot.uploadStencilNumber') },
+    { id: 'issue_image', type: 'capture_image', title: t('chatbot.captureTyreIssue') },
+    {
+      id: 'issues', type: 'checkbox', title: t('chatbot.selectIssues'), options: [
+        t('chatbot.issues.tyreBurst'),
+        t('chatbot.issues.tyrePuncture'),
+        t('chatbot.issues.rimBreakDamage'),
+        t('chatbot.issues.airBulge'),
+        t('chatbot.issues.tyreRunflat'),
+        t('chatbot.issues.cutsCracksDamage'),
+        t('chatbot.issues.beltTreadSeparation')
+      ]
+    },
+    { id: 'issue_image', type: 'capture_image', title: t('chatbot.captureRepairedPhoto') },
+    { id: 'rate_card', type: 'rate_card', title: t('chatbot.rateCardTitle') },
+  ];
 
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -100,7 +110,7 @@ export default function JobChatPage({ mechanicIdProp }) {
     ) {
       postMessage({
         who: "bot",
-        text: "I’ve noted the issues. You can begin the repair.",
+        text: t('chatbot.notedIssues'),
         meta: { step: "finalMapping", values: finalServiceOptions }
       });
     }
@@ -133,11 +143,11 @@ export default function JobChatPage({ mechanicIdProp }) {
   useEffect(() => {
     console.log("[JobChat] mount", { ticketId, mechanicId, API_BASE });
     if (!ticketId) {
-      setErrorText("Missing ticketId in route (path should be /job-chat/:ticketId)");
+      setErrorText(t('errors.missingTicketId'));
       return;
     }
     if (!mechanicId) {
-      setErrorText("Mechanic id not found. Please login or pass mechanicIdProp for testing.");
+      setErrorText(t('errors.mechanicIdNotFound'));
       return;
     }
 
@@ -163,10 +173,13 @@ export default function JobChatPage({ mechanicIdProp }) {
     const msgs = [];
 
     // 1) Greeting / details message
-    const detailsText =
-      `Hi there 👋\nHere are the details for your latest service ticket:\nTicket ID: ${ticketId}` +
-      (driverName ? `\nDriver Name: ${driverName}` : '') +
-      (driverPhone ? `\nContact: ${driverPhone}` : '');
+    let detailsText = t('chatbot.greeting', { ticketId });
+    if (driverPhone) {
+      detailsText += `\n${t('chatbot.driverName', { name: driverPhone })}`;
+    }
+    if (driverName) {
+      detailsText += `\n${t('chatbot.contact', { phone: driverName })}`;
+    }
     msgs.push({
       who: 'bot',
       text: detailsText,
@@ -175,7 +188,7 @@ export default function JobChatPage({ mechanicIdProp }) {
     });
 
     // 2) Capture vehicle plate CTA (BOT_FLOW[1].title)
-    const platePrompt = (BOT_FLOW[1] && BOT_FLOW[1].title) ? BOT_FLOW[1].title : 'Please upload vehicle number plate';
+    const platePrompt = (BOT_FLOW[1] && BOT_FLOW[1].title) ? BOT_FLOW[1].title : t('chatbot.uploadNumberPlate');
     msgs.push({
       who: 'bot',
       text: `${platePrompt}`,
@@ -197,7 +210,7 @@ export default function JobChatPage({ mechanicIdProp }) {
       const data = res.data?.data;
 
       if (!data) {
-        setErrorText("Server returned empty session data.");
+        setErrorText(t('errors.serverReturnedEmpty'));
         console.warn("[JobChat] empty data", res.data);
         // show initial prompts locally so UI isn't blank
         const initial = makeInitialBotMessages(ticketId, driverName, driverPhone);
@@ -218,6 +231,7 @@ export default function JobChatPage({ mechanicIdProp }) {
           console.log("[JobChat] showing local initial bot messages (server had none)");
         } else {
           // normal path: session with messages
+          // Messages from backend are in English, they will be translated when displayed
           setMessages(data.messages || []);
           setFlowIndex(data.flowIndex || 0);
           persistLocal(data, data.messages || [], data.flowIndex || 0);
@@ -226,7 +240,7 @@ export default function JobChatPage({ mechanicIdProp }) {
       }
     } catch (err) {
       console.error("[JobChat] loadSession error", err);
-      setErrorText(`Failed to load session: ${err?.message || err}`);
+      setErrorText(`${t('errors.failedToLoadSession')}: ${err?.message || err}`);
       // show initial prompts locally as fallback when server unreachable
       const initial = makeInitialBotMessages(ticketId, driverName, driverPhone);
       setMessages(initial);
@@ -279,6 +293,7 @@ export default function JobChatPage({ mechanicIdProp }) {
       const updated = res.data?.data;
       if (updated) {
         setSession(updated);
+        // Messages from backend are in English, they will be translated when displayed via translateBotMessage
         setMessages(updated.messages || []);
         setFlowIndex(updated.flowIndex || flowIndex);
         persistLocal(updated, updated.messages || [], updated.flowIndex || flowIndex);
@@ -287,7 +302,7 @@ export default function JobChatPage({ mechanicIdProp }) {
       }
     } catch (err) {
       console.error("[JobChat] postMessage error", err);
-      setErrorText(`Failed to send: ${err?.message || err}`);
+      setErrorText(`${t('errors.failedToSend')}: ${err?.message || err}`);
     }
   }
 
@@ -341,7 +356,7 @@ export default function JobChatPage({ mechanicIdProp }) {
 
   async function submitIssues() {
     if (selectedIssues.length === 0) {
-      alert("Please select at least one issue");
+      alert(t('chatbot.pleaseSelectIssue'));
       return;
     }
     setSubmitting(true);
@@ -352,7 +367,7 @@ export default function JobChatPage({ mechanicIdProp }) {
 
   async function submitApproach() {
     if (selectedApproach.length === 0) {
-      alert("Please select at least one tyreType");
+      alert(t('chatbot.pleaseSelectTyreType'));
       return;
     }
     setSubmitting(true);
@@ -386,7 +401,7 @@ export default function JobChatPage({ mechanicIdProp }) {
 
       postMessage({
         who: "bot",
-        text: "Please confirm the services to generate the invoice.",
+        text: t('chatbot.confirmServices'),
         meta: { action: "confirm_job" }
       });
     }
@@ -467,7 +482,9 @@ export default function JobChatPage({ mechanicIdProp }) {
 
       
 
-      let textToSend = response?.data?.data?.fraud ? `Thanks for confirming ✅, Your job has been sent for ${response?.data?.data?.zohoStatus} .` : 'Thanks for confirming, your job is closed ✅'
+      let textToSend = response?.data?.data?.fraud 
+        ? t('chatbot.thanksConfirming', { status: response?.data?.data?.zohoStatus })
+        : t('chatbot.jobClosed')
 
       // Add bot message after success
       postMessage({
@@ -480,6 +497,126 @@ export default function JobChatPage({ mechanicIdProp }) {
     }
   };
 
+
+  // Function to translate backend messages
+  function translateBotMessage(text) {
+    if (!text) return text;
+    
+    // If already translated (contains Hindi characters), return as is
+    if (/[\u0900-\u097F]/.test(text)) {
+      return text;
+    }
+    
+    const lowerText = text.toLowerCase();
+    
+    // Pattern matching for common backend messages
+    // Greeting with ticket info
+    if (lowerText.includes('hi there') || lowerText.includes('here are the details') || lowerText.includes('service ticket')) {
+      const ticketMatch = text.match(/Ticket ID[:\s]+([^\n]+)/i) || text.match(/Ticket[:\s]+([^\n]+)/i);
+      const driverMatch = text.match(/Driver Name[:\s]+([^\n]+)/i);
+      const contactMatch = text.match(/Contact[:\s]+([^\n]+)/i);
+      
+      let translated = t('chatbot.greeting', { ticketId: ticketMatch ? ticketMatch[1].trim() : '' });
+      if (driverMatch) {
+        translated += `\n${t('chatbot.driverName', { name: driverMatch[1].trim() })}`;
+      }
+      if (contactMatch) {
+        translated += `\n${t('chatbot.contact', { phone: contactMatch[1].trim() })}`;
+      }
+      return translated;
+    }
+    
+    // Upload number plate (various phrasings)
+    if ((lowerText.includes('upload') || lowerText.includes('please upload')) && 
+        (lowerText.includes('number plate') || lowerText.includes('vehicle') || lowerText.includes('plate'))) {
+      return t('chatbot.uploadNumberPlate');
+    }
+    
+    // Upload stencil number
+    if ((lowerText.includes('upload') || lowerText.includes('please upload')) && 
+        (lowerText.includes('stencil') || lowerText.includes('stencil number'))) {
+      return t('chatbot.uploadStencilNumber');
+    }
+    
+    // Capture tyre issue (various phrasings)
+    if ((lowerText.includes('capture') || lowerText.includes('upload') || lowerText.includes('photo')) && 
+        (lowerText.includes('tyre issue') || lowerText.includes('tyre problem') || lowerText.includes('problem'))) {
+      return t('chatbot.captureTyreIssue');
+    }
+    
+    // Capture repaired photo
+    if ((lowerText.includes('capture') || lowerText.includes('upload')) && 
+        (lowerText.includes('repaired') || lowerText.includes('fitted') || lowerText.includes('after repair'))) {
+      return t('chatbot.captureRepairedPhoto');
+    }
+    
+    // Select issues (various phrasings)
+    if (lowerText.includes('pick the issues') || lowerText.includes('select issues') || 
+        lowerText.includes('choose issues') || (lowerText.includes('issues') && lowerText.includes('list'))) {
+      return t('chatbot.selectIssues');
+    }
+    
+    // Rate card (various phrasings)
+    if (lowerText.includes("rate card") || lowerText.includes('bill') || 
+        (lowerText.includes('services') && lowerText.includes('provided'))) {
+      return t('chatbot.rateCardTitle');
+    }
+    
+    // Noted issues / start work
+    if (lowerText.includes("noted the issues") || lowerText.includes("begin the repair") || 
+        lowerText.includes("start your work") || lowerText.includes("all your information")) {
+      return t('chatbot.notedIssues');
+    }
+    
+    // Confirm services
+    if ((lowerText.includes('confirm') || lowerText.includes('verify')) && 
+        (lowerText.includes('services') || lowerText.includes('invoice'))) {
+      return t('chatbot.confirmServices');
+    }
+    
+    // Thanks for confirming
+    if (lowerText.includes('thanks for confirming') || lowerText.includes('thank you for confirming')) {
+      if (lowerText.includes('sent for') || lowerText.includes('sent to')) {
+        const statusMatch = text.match(/sent (?:for|to)\s+([^.]+)/i);
+        return t('chatbot.thanksConfirming', { status: statusMatch ? statusMatch[1].trim() : '' });
+      }
+      if (lowerText.includes('closed') || lowerText.includes('completed')) {
+        return t('chatbot.jobClosed');
+      }
+      return t('chatbot.jobClosed');
+    }
+    
+    // Vehicle matched
+    if (lowerText.includes('vehicle') && (lowerText.includes('matched') || lowerText.includes('match'))) {
+      const vehicleMatch = text.match(/Vehicle\s+([^\s]+)/i) || text.match(/([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{1,4})/);
+      if (vehicleMatch) {
+        return t('chatbot.vehicleMatched', { vehicleNumber: vehicleMatch[1] });
+      }
+    }
+    
+    // Vehicle not matched
+    if (lowerText.includes('vehicle') && (lowerText.includes('not match') || lowerText.includes('did not match'))) {
+      const vehicleMatch = text.match(/Vehicle\s+([^\s]+)/i) || text.match(/([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{1,4})/);
+      const phoneMatch = text.match(/\+?\d{10,}/);
+      if (vehicleMatch) {
+        return t('chatbot.vehicleNotMatched', { 
+          vehicleNumber: vehicleMatch[1],
+          phone: phoneMatch ? phoneMatch[0] : '+91 9999999999'
+        });
+      }
+    }
+    
+    // Stencil found
+    if (lowerText.includes('stencil') && (lowerText.includes('found') || lowerText.includes('detected'))) {
+      const stencilMatch = text.match(/Stencil number\s+([^\s]+)/i) || text.match(/stencil[:\s]+([^\s]+)/i);
+      if (stencilMatch) {
+        return t('chatbot.stencilFound', { stencilNumber: stencilMatch[1] });
+      }
+    }
+    
+    // Return original if no match found (backend message stays as is)
+    return text;
+  }
 
   function renderBotBubble(msg, idx) {
     const currentFlow = BOT_FLOW[flowIndex] || {};
@@ -505,7 +642,8 @@ export default function JobChatPage({ mechanicIdProp }) {
       msg.who === 'bot' &&
       (idx === lastBotIndex || (msg.meta && msg.meta.action === 'capture_image'));
 
-
+    // Translate the message text
+    const translatedText = translateBotMessage(msg.text);
 
     return (
       <div className="max-w-[92%]" key={idx}>
@@ -513,13 +651,13 @@ export default function JobChatPage({ mechanicIdProp }) {
           <img src={BOT_AVATAR} alt="bot" className="w-8 h-8 rounded-full object-contain border-2 border-[#FB8C0066] shadow-xl" />
           <div>
             <div className="bg-white rounded-tl-none rounded-xl p-3 text-sm text-gray-800 shadow-sm border border-[#FB8C0066]">
-              <div className="whitespace-pre-wrap">{msg.text}</div>
+              <div className="whitespace-pre-wrap">{translatedText}</div>
 
               {shouldShowCapture && (
                 <div className="mt-3">
                   <button onClick={onCaptureClick} className="w-full bg-[#FB8C00] hover:bg-orange-600 text-white rounded-md py-3 flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h4l2-3h6l2 3h4v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                    Capture Image
+                    {t('chatbot.captureImage')}
                   </button>
                 </div>
               )}
@@ -535,7 +673,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                       <span className="text-sm">{opt}</span>
                     </label>
                   ))}
-                  <button className="w-full bg-[#FB8C00] text-white rounded-md py-2 mt-3" onClick={submitIssues} disabled={submitting}>Submit</button>
+                  <button className="w-full bg-[#FB8C00] text-white rounded-md py-2 mt-3" onClick={submitIssues} disabled={submitting}>{t('chatbot.submit')}</button>
                 </div>) : (
                   <div className="mt-3 space-y-2">
                     {messages[messages.length - 1].who == "bot" && messages[messages.length - 1]?.meta?.steps[0]?.options?.map(opt => (
@@ -546,7 +684,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                         <span className="text-sm">{opt}</span>
                       </label>
                     ))}
-                    <button className="w-full bg-[#FB8C00] text-white rounded-md py-2 mt-3" onClick={submitApproach} disabled={submitting}>Submit</button>
+                    <button className="w-full bg-[#FB8C00] text-white rounded-md py-2 mt-3" onClick={submitApproach} disabled={submitting}>{t('chatbot.submit')}</button>
                   </div>)
               )}
 
@@ -587,12 +725,12 @@ export default function JobChatPage({ mechanicIdProp }) {
 
               {
                 msg.who === "bot" &&
-                msg.text?.includes("Here’s the rate card") &&
+                (msg.text?.toLowerCase().includes("here's the rate card") || msg.text?.toLowerCase().includes("rate card")) &&
                 finalServiceCost && (
                   <div className="w-full max-w-xs bg-gray-100 rounded-lg px-4 py-3 text-sm shadow-lg my-2 border-gray-300 border">
                     <div className="flex justify-between font-semibold text-gray-700 mb-2">
-                      <span>Services</span>
-                      <span>Prices</span>
+                      <span>{t('chatbot.services')}</span>
+                      <span>{t('chatbot.prices')}</span>
                     </div>
 
                     {finalServiceCost.success &&
@@ -608,7 +746,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                     <div className="border-t border-gray-300 mt-1"></div>
 
                     <div className="flex justify-between py-2 font-semibold text-gray-900">
-                      <span>Total</span>
+                      <span>{t('chatbot.total')}</span>
                       <span className='font-bold'>₹{finalServiceCost.totalCost}</span>
                     </div>
                   </div>
@@ -654,7 +792,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                         })
                       }
                   >
-                    Confirm
+                    {t('common.confirm')}
                   </button>
                 </div>
               )}
@@ -810,7 +948,7 @@ export default function JobChatPage({ mechanicIdProp }) {
     // Step 1 – Tyre Type
     if (tyreTypeOptions.length > 0 && !selectedTyreType) {
       return renderOptions(
-        "Please Select Tyre Type",
+        t('chatbot.selectTyreType'),
         tyreTypeOptions,
         async (opt) => {
           handleTyreTypeSelect(opt);
@@ -826,7 +964,7 @@ export default function JobChatPage({ mechanicIdProp }) {
     // Step 2 – Approach
     if (approachOptions.length > 0 && !selectedApproach) {
       return renderOptions(
-        "Please Select Approach",
+        t('chatbot.selectApproach'),
         approachOptions,
         async (opt) => {
           handleApproachSelect(opt);
@@ -842,7 +980,7 @@ export default function JobChatPage({ mechanicIdProp }) {
     // Step 3 – Patch
     if (patchOptions.length > 0 && !selectedPatch) {
       return renderOptions(
-        "Please Select Patch",
+        t('chatbot.selectPatch'),
         patchOptions,
         async (opt) => {
           handlePatchSelect(opt);
@@ -903,7 +1041,7 @@ export default function JobChatPage({ mechanicIdProp }) {
                     className="w-full bg-gray-100 p-2 rounded-md text-left active:bg-[#FB8C00] active:text-white"
                     onClick={() => onSelect(opt)}
                   >
-                    {opt || "(None)"}
+                    {opt || t('chatbot.none')}
                   </button>
                 ))}
               </div>
@@ -949,7 +1087,7 @@ export default function JobChatPage({ mechanicIdProp }) {
       </div>
 
       <div ref={listRef} className="flex-1 px-4 py-4 overflow-auto space-y-3 max-w-2xl mx-auto w-full">
-        {loading && <div className="text-center text-sm text-gray-500">Loading…</div>}
+        {loading && <div className="text-center text-sm text-gray-500">{t('chatbot.loading')}</div>}
         {errorText && <div className="text-center text-sm text-red-600">{errorText}</div>}
 
         {/* Fallback here once multi fail */}
@@ -992,8 +1130,8 @@ export default function JobChatPage({ mechanicIdProp }) {
 
       <div className="bg-white border-t border-gray-200 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && onSendText()} className="flex-1 rounded-full border border-gray-200 px-4 py-2 text-sm" placeholder="Type your message here" />
-          <button onClick={onSendText} className="bg-[#FB8C00] text-white rounded-full px-4 py-2">Send</button>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && onSendText()} className="flex-1 rounded-full border border-gray-200 px-4 py-2 text-sm" placeholder={t('chatbot.typeMessage')} />
+          <button onClick={onSendText} className="bg-[#FB8C00] text-white rounded-full px-4 py-2">{t('chatbot.send')}</button>
           <button onClick={() => fileRef.current?.click()} className="p-2 rounded-full hover:bg-gray-100">📷</button>
         </div>
       </div>
