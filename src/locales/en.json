@@ -263,6 +263,8 @@
     "prices": "Prices",
     "total": "Total",
     "none": "(None)",
+    "imageReceived": "Image received and saved successfully.",
+    "updatingServiceSummary": "Updating your service summary…",
     "issues": {
       "tyreBurst": "Tyre Burst",
       "tyrePuncture": "Tyre Puncture",

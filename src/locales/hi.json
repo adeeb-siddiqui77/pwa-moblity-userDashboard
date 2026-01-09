@@ -263,6 +263,8 @@
     "prices": "कीमतें",
     "total": "कुल",
     "none": "(कोई नहीं)",
+    "imageReceived": "छवि प्राप्त हो गई और सफलतापूर्वक सहेजी गई।",
+    "updatingServiceSummary": "आपकी सेवा सारांश अपडेट हो रहा है…",
     "issues": {
       "tyreBurst": "टायर फट गया है",
       "tyrePuncture": "टायर पंचर है",

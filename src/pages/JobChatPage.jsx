@@ -656,12 +656,11 @@ export default function JobChatPage({ mechanicIdProp }) {
       return t('chatbot.vehicleNotVerified');
     }
     
-    // Stencil found
-    if (lowerText.includes('stencil') && (lowerText.includes('found') || lowerText.includes('detected'))) {
-      const stencilMatch = text.match(/Stencil number\s+([^\s]+)/i) || text.match(/stencil[:\s]+([^\s]+)/i);
-      if (stencilMatch) {
-        return t('chatbot.stencilFound', { stencilNumber: stencilMatch[1] });
-      }
+    // Stencil not verified (error) - CHECK THIS FIRST before "found" or "verified"
+    if (lowerText.includes('stencil') && (lowerText.includes('not verified') || lowerText.includes('could not be verified') || 
+        lowerText.includes('verification failed') || lowerText.includes('failed to verify') || 
+        (lowerText.includes('not') && lowerText.includes('found')))) {
+      return t('chatbot.stencilNotVerified');
     }
     
     // Stencil verified
@@ -672,10 +671,26 @@ export default function JobChatPage({ mechanicIdProp }) {
       }
     }
     
-    // Stencil not verified (error)
-    if (lowerText.includes('stencil') && (lowerText.includes('not verified') || lowerText.includes('could not be verified') || 
-        lowerText.includes('verification failed') || lowerText.includes('failed to verify'))) {
-      return t('chatbot.stencilNotVerified');
+    // Stencil found
+    if (lowerText.includes('stencil') && (lowerText.includes('found') || lowerText.includes('detected'))) {
+      const stencilMatch = text.match(/Stencil number\s+([^\s]+)/i) || text.match(/stencil[:\s]+([^\s]+)/i);
+      if (stencilMatch) {
+        return t('chatbot.stencilFound', { stencilNumber: stencilMatch[1] });
+      }
+    }
+    
+    // Image received and saved successfully
+    if (lowerText.includes('image received') && lowerText.includes('saved successfully')) {
+      let translated = t('chatbot.imageReceived');
+      if (lowerText.includes('updating') || lowerText.includes('service summary')) {
+        translated += ' ' + t('chatbot.updatingServiceSummary');
+      }
+      return translated;
+    }
+    
+    // Updating service summary (standalone)
+    if (lowerText.includes('updating your service summary') || lowerText.includes('updating service summary')) {
+      return t('chatbot.updatingServiceSummary');
     }
     
     // Return original if no match found (backend message stays as is)
