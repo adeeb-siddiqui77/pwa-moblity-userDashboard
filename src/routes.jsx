@@ -16,7 +16,9 @@ import TicketDetails from "./pages/TicketDetails";
 import JobChatPage from "./pages/JobChatPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import PitStopOnboarding from "./pages/PitStopOnboarding";
+import PitStopForm from "./pages/PitStopForm";
 import Manager from "./pages/Manager";
+import OperatorDashboard from "./pages/OperatorDashboard";
 
 export default function AppRoutes({ authed }) {
   const user = authed ? JSON.parse(localStorage.getItem("user")) : null;
@@ -38,6 +40,9 @@ export default function AppRoutes({ authed }) {
             <Route path="/" element={<PitStopOnboarding />} />
           )}
           {role === "MANAGER" && <Route path="/" element={<Manager />} />}
+          {role === "OPERATOR" && (
+            <Route path="/" element={<OperatorDashboard />} />
+          )}
 
           <Route path="/" element={<Home />} />
           <Route path="/jobs" element={<Jobs />} />
@@ -51,6 +56,7 @@ export default function AppRoutes({ authed }) {
           <Route path="/rate-card" element={<RateCard />} />
           <Route path="/support" element={<SupportTickets />} />
           <Route path="/training" element={<Training />} />
+          <Route path="/pitstop-form" element={<PitStopForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           <Route path="/job-chat/:ticketId" element={<JobChatPage />} />
         </>

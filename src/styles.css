@@ -442,6 +442,36 @@ hr.sep{border:0;border-top:1px solid #eee;margin:8px 0}
 .checkbox-item input[type=checkbox]:checked{background-color:var(--brand);border-color:var(--brand)}
 .checkbox-item span{font-family:var(--font-family);font-weight:500;font-size:14px;line-height:100%;letter-spacing:0px;color:#111827}
 
+/* White checkmark for all checkboxes */
+input[type=checkbox] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+input[type=checkbox]:checked {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+
+input[type=checkbox]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* Enhanced radio group */
 .radio-group{display:flex;gap:16px;flex-wrap:wrap}
 .radio-item{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0}
