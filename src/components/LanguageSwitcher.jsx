@@ -11,7 +11,7 @@ export default function LanguageSwitcher() {
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <button
+      {/* <button
         onClick={() => changeLanguage('en')}
         style={{
           padding: '6px 12px',
@@ -40,7 +40,7 @@ export default function LanguageSwitcher() {
         }}
       >
         हिं
-      </button>
+      </button> */}
     </div>
   );
 }

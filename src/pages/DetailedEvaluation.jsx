@@ -122,7 +122,16 @@ export default function DetailedEvaluation() {
       });
 
       if (response.data.success) {
-        setPitstopData(response.data.pitstop);
+        const pitstop = response.data.pitstop;
+        setPitstopData(pitstop);
+        
+        // Load existing ratings if they exist
+        if (pitstop.ratings) {
+          setRatings(prev => ({
+            ...prev,
+            ...pitstop.ratings
+          }));
+        }
       }
     } catch (error) {
       console.error('Failed to load pitstop data:', error.response?.data || error.message);
@@ -678,8 +687,8 @@ export default function DetailedEvaluation() {
 
       {/* Category Result Modal */}
       {showModal && categoryResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
             {categoryResult.category !== 'D' ? (
               /* Categories A, B, C - Eligible */
               <div className="text-center">

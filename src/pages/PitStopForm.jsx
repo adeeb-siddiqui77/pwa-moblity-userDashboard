@@ -10,7 +10,6 @@ export default function PitStopForm() {
   const [loading, setLoading] = useState(false);
   const [draftId, setDraftId] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     pitstopName: '',
     ownerName: '',
@@ -23,7 +22,7 @@ export default function PitStopForm() {
 
   // Load existing draft or create new one on component mount
   useEffect(() => {
-    const existingDraftId = searchParams.get('draftId');
+    const existingDraftId = searchParams.get('draftId') || searchParams.get('pitstopId');
     if (existingDraftId) {
       loadExistingDraft(existingDraftId);
     } else {
@@ -71,7 +70,7 @@ export default function PitStopForm() {
     }
   };
 
-  // Auto-save on field change
+  // Auto-save on field change (only for drafts, not submitted forms)
   useEffect(() => {
     const timer = setTimeout(() => {
       if (draftId && (formData.pitstopName || formData.ownerName || formData.contactNumber || formData.location)) {
@@ -99,7 +98,10 @@ export default function PitStopForm() {
         console.log('Draft saved successfully');
       }
     } catch (error) {
-      console.error('Failed to save draft:', error.response?.data || error.message);
+      // Silently ignore 404 errors (form already submitted)
+      if (error.response?.status !== 404) {
+        console.error('Failed to save draft:', error.response?.data || error.message);
+      }
     }
   };
 
@@ -109,13 +111,6 @@ export default function PitStopForm() {
       ...prev,
       [name]: value,
     }));
-    // Clear error for this field when user types
-    if (fieldErrors[name]) {
-      setFieldErrors((prev) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
   };
 
   const handleCheckboxChange = (fieldName, value) => {
@@ -128,56 +123,36 @@ export default function PitStopForm() {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      setFieldErrors({});
       setSuccessMessage('');
-
-      // Validate required fields
-      const errors = {};
-      if (!formData.pitstopName) errors.pitstopName = 'PitStop name is required';
-      if (!formData.ownerName) errors.ownerName = 'Owner name is required';
-      if (!formData.contactNumber) errors.contactNumber = 'Contact number is required';
-      if (!formData.location) errors.location = 'Location is required';
-
-      if (Object.keys(errors).length > 0) {
-        setFieldErrors(errors);
-        setLoading(false);
-        return;
-      }
-
-      const token = localStorage.getItem('access_token');
 
       if (!draftId) {
         setLoading(false);
         return;
       }
 
-      console.log('Submitting pitstop with ID:', draftId);
+      // Check if required fields are filled
+      const hasRequiredFields = formData.pitstopName && formData.ownerName && 
+                                formData.contactNumber && formData.location;
 
-      const response = await axios.post(
-        `${API_BASE_URL}/submit/${draftId}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      // Check if all three checkboxes are "Yes"
+      const allCheckboxesYes = 
+        formData.inflationCapability === true && 
+        formData.hydraulicJack === true && 
+        formData.repairKits === true;
 
-      console.log('Submit response:', response.data);
+      // Save as draft first
+      await saveDraft();
 
-      if (response.data.success) {
-        // Check if all three checkboxes are "Yes"
-        const allCheckboxesYes = 
-          formData.inflationCapability === true && 
-          formData.hydraulicJack === true && 
-          formData.repairKits === true;
-
-        if (allCheckboxesYes) {
-          // Navigate to detailed evaluation page
-          navigate(`/detailed-evaluation?pitstopId=${draftId}`);
-        } else {
-          // Show success modal (existing flow)
-          setSuccessMessage('Form submitted successfully!');
-        }
+      // If required fields are missing OR checkboxes not all checked, just show success
+      if (!hasRequiredFields || !allCheckboxesYes) {
+        setSuccessMessage('Form submitted successfully!');
+        setLoading(false);
+        return;
       }
+
+      // All required fields filled and all checkboxes Yes -> navigate to detailed evaluation
+      // Still keeping it as draft until detailed evaluation is complete
+      navigate(`/detailed-evaluation?pitstopId=${draftId}`);
     } catch (error) {
       console.error('Failed to submit form:', error.response?.data || error.message);
     } finally {
@@ -216,15 +191,8 @@ export default function PitStopForm() {
               value={formData.pitstopName}
               onChange={handleInputChange}
               placeholder="Enter pitstop name"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none ${
-                fieldErrors.pitstopName
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-300 focus:border-orange-500'
-              }`}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
             />
-            {fieldErrors.pitstopName && (
-              <p className="text-red-500 text-sm mt-1">{fieldErrors.pitstopName}</p>
-            )}
           </div>
 
           {/* Owner Name */}
@@ -236,15 +204,8 @@ export default function PitStopForm() {
               value={formData.ownerName}
               onChange={handleInputChange}
               placeholder="Enter owner name"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none ${
-                fieldErrors.ownerName
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-300 focus:border-orange-500'
-              }`}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
             />
-            {fieldErrors.ownerName && (
-              <p className="text-red-500 text-sm mt-1">{fieldErrors.ownerName}</p>
-            )}
           </div>
 
           {/* Contact Number */}
@@ -260,16 +221,9 @@ export default function PitStopForm() {
                 value={formData.contactNumber}
                 onChange={handleInputChange}
                 placeholder="Enter contact number"
-                className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none ${
-                  fieldErrors.contactNumber
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-300 focus:border-orange-500'
-                }`}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
               />
             </div>
-            {fieldErrors.contactNumber && (
-              <p className="text-red-500 text-sm mt-1">{fieldErrors.contactNumber}</p>
-            )}
           </div>
 
           {/* Location */}
@@ -281,15 +235,8 @@ export default function PitStopForm() {
               value={formData.location}
               onChange={handleInputChange}
               placeholder="Enter location"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none ${
-                fieldErrors.location
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-gray-300 focus:border-orange-500'
-              }`}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
             />
-            {fieldErrors.location && (
-              <p className="text-red-500 text-sm mt-1">{fieldErrors.location}</p>
-            )}
           </div>
         </div>
 
