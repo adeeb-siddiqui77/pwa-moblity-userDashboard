@@ -531,7 +531,7 @@ export default function PitStopAdditionalDetails() {
           ←
         </button>
         <h1 className="text-lg font-bold text-black">
-          Onboarding Details
+          {category ? `Onboarding Category ${category} Pitstop` : 'Onboarding Details'}
         </h1>
       </div>
 

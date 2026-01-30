@@ -33,59 +33,64 @@ export default function PitStopForm() {
     }));
   };
 
-  // const getLocationFromCoordinates = async () => {
-  //   return new Promise((resolve, reject) => {
-  //     if (!navigator.geolocation) {
-  //       reject('Geolocation not supported');
-  //       return;
-  //     }
+  const getLocationFromCoordinates = async () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject('Geolocation not supported');
+        return;
+      }
 
-  //     navigator.geolocation.getCurrentPosition(
-  //       async (position) => {
-  //         const { latitude, longitude } = position.coords;
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
           
-  //         try {
-  //           const GOOGLE_API_KEY = 'AIzaSyDagX1h0n0zsQtAZ9bCaD9zdmjWx_1cLoo';
-  //           const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`;
+          try {
+            const GOOGLE_API_KEY = 'AIzaSyDagX1h0n0zsQtAZ9bCaD9zdmjWx_1cLoo';
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`;
             
-  //           const response = await fetch(geocodeUrl);
-  //           const data = await response.json();
+            const response = await fetch(geocodeUrl);
+            const data = await response.json();
             
-  //           if (data.status === 'OK' && data.results.length > 0) {
-  //             const formattedAddress = data.results[0].formatted_address;
-  //             resolve(formattedAddress);
-  //           } else {
-  //             reject('Failed to get location');
-  //           }
-  //         } catch (error) {
-  //           reject(error);
-  //         }
-  //       },
-  //       (error) => reject(error)
-  //     );
-  //   });
-  // };
+            if (data.status === 'OK' && data.results.length > 0) {
+              const formattedAddress = data.results[0].formatted_address;
+              resolve(formattedAddress);
+            } else {
+              reject('Failed to get location');
+            }
+          } catch (error) {
+            reject(error);
+          }
+        },
+        (error) => reject(error)
+      );
+    });
+  };
 
-  // const handleGetLocation = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const address = await getLocationFromCoordinates();
-  //     setFormData((prev) => ({
-  //       ...prev,
-  //       location: address,
-  //     }));
-  //   } catch (error) {
-  //     console.error('Failed to get location:', error);
-  //     alert('Failed to get location. Please enter manually.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  const handleGetLocation = async () => {
+    try {
+      setLoading(true);
+      const address = await getLocationFromCoordinates();
+      setFormData((prev) => ({
+        ...prev,
+        location: address,
+      }));
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      alert('Failed to get location. Please enter manually.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const saveAsProspect = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post(`${PROSPECT_API_URL}/create`, formData, {
+      await axios.post(`${PROSPECT_API_URL}/create`, {
+        ...formData,
+        category: null,
+        evaluationStage: 'before_evaluation',
+        isIncomplete: true
+      }, {
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch (error) {
@@ -121,7 +126,7 @@ export default function PitStopForm() {
       // All required fields filled and all checkboxes Yes -> navigate to detailed evaluation
       navigate('/detailed-evaluation', { 
         state: { 
-          onboardingData: formData 
+          formData: formData 
         } 
       });
     } catch (error) {
@@ -200,25 +205,38 @@ export default function PitStopForm() {
 
           {/* Location */}
           <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Enter location"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
-              />
-              {/* <button
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-medium text-gray-700">Location</label>
+              <button
                 type="button"
                 onClick={handleGetLocation}
                 disabled={loading}
-                className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+                style={{ color: 'var(--brand)' }}
               >
-                📍
-              </button> */}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span>Fetch Current Location</span>
+              </button>
             </div>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleInputChange}
+              placeholder="Enter location"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
+            />
           </div>
         </div>
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:9897/api/pitstops';
+const PROSPECT_API_URL = 'http://localhost:9897/api/prospect';
 
 // Helper function to get auth token
 const getAuthToken = () => localStorage.getItem('access_token');
@@ -10,9 +11,11 @@ const getAuthToken = () => localStorage.getItem('access_token');
 export default function DetailedEvaluation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [pitstopId, setPitstopId] = useState(null);
   const [pitstopData, setPitstopData] = useState(null);
+  const [formData, setFormData] = useState(null); // Form data from PitStopForm
   const [showModal, setShowModal] = useState(false);
   const [categoryResult, setCategoryResult] = useState(null);
   
@@ -53,22 +56,39 @@ export default function DetailedEvaluation() {
     }));
   };
 
-  const handleContinue = async () => {
-    if (!pitstopId) {
-      alert('No pitstop ID found');
-      return;
+  const saveAsProspect = async (pitstopData) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const prospectData = {
+        pitstopName: pitstopData.pitstopName,
+        ownerName: pitstopData.ownerName,
+        contactNumber: pitstopData.contactNumber,
+        location: pitstopData.location,
+        inflationCapability: pitstopData.inflationCapability,
+        hydraulicJack: pitstopData.hydraulicJack,
+        repairKits: pitstopData.repairKits,
+        category: 'D',
+        evaluationStage: 'after_evaluation',
+        isIncomplete: false
+      };
+      await axios.post(`${PROSPECT_API_URL}/create`, prospectData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      console.error('Failed to save prospect:', error);
+      throw error;
     }
+  };
 
+  const handleContinue = async () => {
     try {
       setLoading(true);
       const token = getAuthToken();
       
+      // Categorize based on ratings only
       const response = await axios.post(
         `${API_BASE_URL}/categorize`,
-        {
-          pitstopId,
-          ratings
-        },
+        { ratings },
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -86,6 +106,12 @@ export default function DetailedEvaluation() {
 
         // Auto-close and redirect for Category D after 5 seconds
         if (response.data.data.category === 'D') {
+          try {
+            await saveAsProspect(formData || pitstopData);
+          } catch (prospectError) {
+            console.error('Failed to save as prospect:', prospectError);
+            // Don't block the flow, just log the error
+          }
           setTimeout(() => {
             setShowModal(false);
             navigate('/pitstop-onboarding');
@@ -104,11 +130,18 @@ export default function DetailedEvaluation() {
 
   useEffect(() => {
     const id = searchParams.get('pitstopId');
+    const incomingFormData = location.state?.formData;
+    
     if (id) {
+      // Coming from existing pitstop (edit mode)
       setPitstopId(id);
       loadPitstopData(id);
+    } else if (incomingFormData) {
+      // Coming from PitStopForm with new data
+      setFormData(incomingFormData);
+      setPitstopData(incomingFormData); // Use form data as pitstop data for display
     } else {
-      // No pitstopId provided, redirect back
+      // No data provided, redirect back
       navigate('/pitstop-onboarding');
     }
   }, []);
